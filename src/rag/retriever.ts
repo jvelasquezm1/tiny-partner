@@ -42,7 +42,15 @@ export class Retriever {
       passages[`p${i}`] = chunk.content;
       questions[`p${i}`] = noul(`Does passage p${i} contain information that helps answer the parent's question?`);
     });
-    const { answers } = await this.jev.systemOne({ state: { question, passages }, questions });
+    let answers;
+    try {
+      ({ answers } = await this.jev.systemOne({ state: { question, passages }, questions }));
+    } catch (error) {
+      // Without triage, pass the top search results through: the answer still has to cite them,
+      // and an uncited answer is replaced by the no-source reply.
+      console.warn("jev unavailable, skipping triage", error);
+      return candidates.slice(0, MAX_PASSAGES);
+    }
 
     return candidates
       .map((chunk, i) => ({ chunk, relevance: answers[`p${i}`]?.noul ?? 0 }))
