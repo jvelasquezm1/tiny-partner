@@ -1,0 +1,8 @@
+{"text":"tomó 120 ml","now":"2026-11-10T10:00:00+01:00","expected":{"kind":"feed","startedAt":"2026-11-10T10:00:00+01:00","endedAt":null,"amountMl":120,"side":null,"diaper":null}}
+{"text":"pecho izquierdo a las 3","now":"2026-11-10T03:20:00+01:00","expected":{"kind":"feed","startedAt":"2026-11-10T03:00:00+01:00","endedAt":null,"amountMl":null,"side":"left","diaper":null}}
+{"text":"durmió de 2 a 4:30","now":"2026-11-10T17:00:00+01:00","expected":{"kind":"sleep","startedAt":"2026-11-10T14:00:00+01:00","endedAt":"2026-11-10T16:30:00+01:00","amountMl":null,"side":null,"diaper":null}}
+{"text":"pañal sucio hace media hora","now":"2026-11-10T12:00:00+01:00","expected":{"kind":"diaper","startedAt":"2026-11-10T11:30:00+01:00","endedAt":null,"amountMl":null,"side":null,"diaper":"dirty"}}
+{"text":"bottle 90ml at 6","now":"2026-11-10T06:40:00+01:00","expected":{"kind":"feed","startedAt":"2026-11-10T06:00:00+01:00","endedAt":null,"amountMl":90,"side":null,"diaper":null}}
+{"text":"se acaba de dormir","now":"2026-11-10T21:15:00+01:00","expected":{"kind":"sleep","startedAt":"2026-11-10T21:15:00+01:00","endedAt":null,"amountMl":null,"side":null,"diaper":null}}
+{"text":"pipí y caca","now":"2026-11-10T09:00:00+01:00","expected":{"kind":"diaper","startedAt":"2026-11-10T09:00:00+01:00","endedAt":null,"amountMl":null,"side":null,"diaper":"both"}}
+{"text":"ambos pechos de 11 a 11:25","now":"2026-11-10T11:30:00+01:00","expected":{"kind":"feed","startedAt":"2026-11-10T11:00:00+01:00","endedAt":"2026-11-10T11:25:00+01:00","amountMl":null,"side":"both","diaper":null}}

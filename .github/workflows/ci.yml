@@ -1,0 +1,39 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  eval-extraction:
+    # Real API calls: only when the extraction code or its dataset changes.
+    if: github.event_name == 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            extraction: ['src/extract/**', 'evals/extraction*']
+      - uses: pnpm/action-setup@v4
+        if: steps.changes.outputs.extraction == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.extraction == 'true'
+        with: { node-version: 24, cache: pnpm }
+      - if: steps.changes.outputs.extraction == 'true'
+        run: pnpm install --frozen-lockfile && pnpm eval:extraction
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -1,0 +1,35 @@
+{
+  "name": "tiny-partner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An AI assistant for new parents: log feeds, sleep and diapers by chat, ask about your data or get answers grounded in cited pediatric guidance.",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "ingest": "tsx src/rag/ingest.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "eval:extraction": "tsx evals/extraction.ts"
+  },
+  "packageManager": "pnpm@10.30.1",
+  "engines": {
+    "node": ">=22.15"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.2.0",
+    "@typesafe-ai/sdk": "^0.7.0",
+    "grammy": "^1.46.0",
+    "pg": "^8.23.1",
+    "voyageai": "^0.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
