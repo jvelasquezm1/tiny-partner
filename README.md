@@ -1,6 +1,6 @@
 # tiny-partner
 
-An AI assistant for new parents, in Telegram. Log feeds, sleep and diapers in plain language, ask about your baby's day, and (soon) get answers grounded in cited pediatric guidance.
+An AI assistant for new parents, in Telegram. Log feeds, sleep and diapers in plain language, ask about your baby's day, and get answers grounded in cited pediatric guidance.
 
 > Not medical advice. Messages that look urgent get a fixed "call emergency services" reply; no model improvises.
 
@@ -48,6 +48,7 @@ pnpm dev
 | `pnpm typecheck` | TypeScript |
 | `pnpm eval:extraction` | Extraction accuracy, field by field (costs tokens) |
 | `pnpm eval:routing` | Router benchmark: Jev vs Claude (costs tokens) |
+| `pnpm eval:rag` | Retrieval recall, no-source behavior and faithfulness (costs tokens) |
 
 ## Evals
 
@@ -55,8 +56,15 @@ pnpm dev
 
 <!-- Paste evals/results/routing.md here after running pnpm eval:routing -->
 
+**RAG** (`evals/rag.jsonl`, labeled against the ingested sources):
+- *recall@8 (search)*: the right source is among the hybrid-search candidates.
+- *recall (triage)*: it survives Jev's relevance check.
+- *no-source correct*: questions no source answers get "ask your pediatrician", not an improvised answer.
+- *faithfulness*: Claude as judge lists any claim the cited passages do not support.
+
 ## Roadmap
 
 - [x] Weekend 1: log events, ask about your data, Jev router + urgency guardrail
 - [x] Weekend 2: RAG over licensed pediatric guidance with citations; "no reliable source" when retrieval finds nothing
-- [ ] Weekend 3: routing eval + Jev vs LLM router benchmark (accuracy, latency, cost), retrieval recall@k and faithfulness evals, deploy
+- [x] Weekend 3: routing eval + Jev vs LLM router benchmark (accuracy, latency, cost), retrieval recall@k and faithfulness evals
+- [ ] Deploy
