@@ -24,7 +24,8 @@ You summarize data only: do not give medical advice.`;
 export class DataAnswerer {
   constructor(
     private readonly client: Anthropic,
-    private readonly jev: TypeSafeClient,
+    /** Null when no TypeSafe key is configured: Claude answers everything. */
+    private readonly jev: TypeSafeClient | null,
     private readonly events: EventsRepository,
   ) {}
 
@@ -37,6 +38,7 @@ export class DataAnswerer {
   }
 
   private async classify(question: string): Promise<CommonQuestion | null> {
+    if (!this.jev) return null;
     try {
       const { answers } = await this.jev.systemOne({
         state: { question },

@@ -17,7 +17,8 @@ export class Retriever {
   constructor(
     private readonly embedder: Embedder,
     private readonly guidance: GuidanceRepository,
-    private readonly jev: TypeSafeClient,
+    /** Null when no TypeSafe key is configured: triage is skipped. */
+    private readonly jev: TypeSafeClient | null,
   ) {}
 
   async retrieve(question: string): Promise<GuidanceChunk[]> {
@@ -35,6 +36,7 @@ export class Retriever {
 
   async triage(question: string, candidates: GuidanceChunk[]): Promise<GuidanceChunk[]> {
     if (candidates.length === 0) return [];
+    if (!this.jev) return candidates.slice(0, MAX_PASSAGES);
 
     const questions: Record<string, NoulQuestion> = {};
     const passages: Record<string, string> = {};

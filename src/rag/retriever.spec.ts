@@ -16,4 +16,12 @@ describe("Retriever.triage", () => {
 
     expect(kept.map((c) => c.id)).toEqual([1, 2, 3, 4]);
   });
+
+  it("passes the top search results through when no TypeSafe key is configured", async () => {
+    const retriever = new Retriever({} as Embedder, {} as GuidanceRepository, null);
+
+    const kept = await retriever.triage("¿cada cuánto come?", [1, 2, 3, 4, 5, 6].map(chunk));
+
+    expect(kept.map((c) => c.id)).toEqual([1, 2, 3, 4]);
+  });
 });

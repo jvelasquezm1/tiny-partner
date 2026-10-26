@@ -3,7 +3,11 @@ import { z } from "zod";
 const EnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   ANTHROPIC_API_KEY: z.string().min(1),
-  TYPESAFE_API_KEY: z.string().min(1),
+  // Optional: without it the bot runs on Claude alone (see main.ts).
+  TYPESAFE_API_KEY: z
+    .string()
+    .optional()
+    .transform((key) => key || undefined),
   DATABASE_URL: z.url(),
   ALLOWED_TELEGRAM_USER_IDS: z
     .string()

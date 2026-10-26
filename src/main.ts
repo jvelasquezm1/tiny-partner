@@ -19,7 +19,11 @@ const env = loadEnv();
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 // Fail fast so the fallbacks kick in within seconds: worst case ~2 attempts × 3 s instead of 3 × 10 s.
-const jev = new TypeSafeClient({ apiKey: env.TYPESAFE_API_KEY, timeout: 3_000, retry: { maxRetries: 1 } });
+// No key, no Jev: every step takes the same path it takes when Jev is down.
+const jev = env.TYPESAFE_API_KEY
+  ? new TypeSafeClient({ apiKey: env.TYPESAFE_API_KEY, timeout: 3_000, retry: { maxRetries: 1 } })
+  : null;
+if (!jev) console.log("TYPESAFE_API_KEY not set: running on Claude alone");
 const events = new EventsRepository(pool);
 const retriever = new Retriever(
   new Embedder(),
@@ -29,7 +33,9 @@ const retriever = new Retriever(
 
 const bot = new Bot(env.TELEGRAM_BOT_TOKEN);
 registerHandlers(bot, {
-  decider: new FallbackDecider(new MessageDecider(jev), new ClaudeDecider(anthropic)),
+  decider: jev
+    ? new FallbackDecider(new MessageDecider(jev), new ClaudeDecider(anthropic))
+    : new ClaudeDecider(anthropic),
   extractor: new EventExtractor(anthropic),
   events,
   dataAnswerer: new DataAnswerer(anthropic, jev, events),

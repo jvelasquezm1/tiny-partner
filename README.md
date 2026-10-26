@@ -26,7 +26,7 @@ Telegram message
 ## Design decisions
 
 - **Safety is a branch, not a prompt.** The urgency check runs before any generative model and short-circuits to a fixed reply.
-- **Degrade, never go silent.** If Jev is down, Claude takes over routing, data questions and retrieval (dropping only the triage step). If no router works, the bot replies "call 112 if it is urgent" instead of nothing.
+- **Degrade, never go silent.** If Jev is down, Claude takes over routing, data questions and retrieval (dropping only the triage step). If no router works, the bot replies "call 112 if it is urgent" instead of nothing. Without a TypeSafe key the bot starts in that same Claude-only mode.
 - **Typed end to end.** Zod schemas validate Claude's structured output; Jev's SDK infers answer types from the questions.
 - **Dependencies injected** into the bot handlers, so routing is unit-tested without network calls.
 - **Pay for a model only when it adds something.** Common data questions ("when did she last eat?") are answered with SQL and a template. Extraction runs on Claude Haiku. Embeddings run locally (multilingual-e5-small, quantized), so search has no API cost; everything, vectors included, lives in one Postgres.
@@ -37,7 +37,7 @@ Telegram message
 ## Run locally
 
 ```sh
-cp .env.example .env          # fill in the keys
+cp .env.example .env          # fill in the keys (TYPESAFE_API_KEY is optional)
 docker compose up -d          # Postgres + pgvector on :5544
 pnpm install
 pnpm db:migrate

@@ -16,4 +16,13 @@ describe("DataAnswerer", () => {
     expect(answer).toBe("Hace 2 horas.");
     expect(toolRunner).toHaveBeenCalledOnce();
   });
+
+  it("answers with Claude when no TypeSafe key is configured", async () => {
+    const toolRunner = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "Hace 2 horas." }] });
+    const claude = { beta: { messages: { toolRunner } } } as unknown as Anthropic;
+
+    const answer = await new DataAnswerer(claude, null, {} as EventsRepository).answer(7, "¿cuándo comió?", new Date(), "Europe/Madrid");
+
+    expect(answer).toBe("Hace 2 horas.");
+  });
 });
