@@ -29,16 +29,25 @@ export class DataAnswerer {
   ) {}
 
   /** Common questions cost one Jev call and one SQL query; only the rest reach Claude. */
+  /** If Jev is down, Claude answers everything: slower and pricier, never unanswered. */
   async answer(chatId: number, question: string, now: Date, timeZone: string): Promise<string> {
-    const { answers } = await this.jev.systemOne({
-      state: { question },
-      questions: { kind: choice("Which question about the baby's log is this?", COMMON_QUESTION_DESCRIPTIONS) },
-    });
-    const { choice: kind, confidence } = answers.kind;
-    if (kind !== "other" && confidence >= COMMON_QUESTION_CONFIDENCE) {
-      return this.answerCommon(chatId, kind, now, timeZone);
-    }
+    const common = await this.classify(question);
+    if (common) return this.answerCommon(chatId, common, now, timeZone);
     return this.answerWithClaude(chatId, question, now, timeZone);
+  }
+
+  private async classify(question: string): Promise<CommonQuestion | null> {
+    try {
+      const { answers } = await this.jev.systemOne({
+        state: { question },
+        questions: { kind: choice("Which question about the baby's log is this?", COMMON_QUESTION_DESCRIPTIONS) },
+      });
+      const { choice: kind, confidence } = answers.kind;
+      return kind !== "other" && confidence >= COMMON_QUESTION_CONFIDENCE ? kind : null;
+    } catch (error) {
+      console.warn("jev unavailable, answering with Claude", error);
+      return null;
+    }
   }
 
   private async answerCommon(chatId: number, question: CommonQuestion, now: Date, timeZone: string): Promise<string> {
