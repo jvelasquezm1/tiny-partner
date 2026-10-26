@@ -46,7 +46,14 @@ pnpm dev
 |---|---|
 | `pnpm test` | Unit tests (no network) |
 | `pnpm typecheck` | TypeScript |
-| `pnpm eval:extraction` | Extraction eval against the real API (costs tokens) |
+| `pnpm eval:extraction` | Extraction accuracy, field by field (costs tokens) |
+| `pnpm eval:routing` | Router benchmark: Jev vs Claude (costs tokens) |
+
+## Evals
+
+**Router benchmark** (`evals/routing.jsonl`, 32 labeled messages in Spanish and English). The metric that matters most is urgent recall: a missed urgency is the expensive error.
+
+<!-- Paste evals/results/routing.md here after running pnpm eval:routing -->
 
 ## Roadmap
 

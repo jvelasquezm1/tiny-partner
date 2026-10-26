@@ -1,0 +1,32 @@
+{"text":"tomó 120 ml","urgent":false,"intent":"log_event"}
+{"text":"pecho izquierdo 15 min","urgent":false,"intent":"log_event"}
+{"text":"se acaba de dormir","urgent":false,"intent":"log_event"}
+{"text":"pañal sucio","urgent":false,"intent":"log_event"}
+{"text":"bottle 90ml at 6","urgent":false,"intent":"log_event"}
+{"text":"woke up from nap at 4:30","urgent":false,"intent":"log_event"}
+{"text":"durmió de 2 a 4:30 y luego tomó pecho","urgent":false,"intent":"log_event"}
+{"text":"¿cuándo comió por última vez?","urgent":false,"intent":"ask_about_data"}
+{"text":"¿cuánto ha dormido hoy?","urgent":false,"intent":"ask_about_data"}
+{"text":"cuántos pañales lleva desde la mañana","urgent":false,"intent":"ask_about_data"}
+{"text":"how much did she drink yesterday?","urgent":false,"intent":"ask_about_data"}
+{"text":"¿le toca el pecho derecho o el izquierdo?","urgent":false,"intent":"ask_about_data"}
+{"text":"has he slept more this week than last week?","urgent":false,"intent":"ask_about_data"}
+{"text":"¿cada cuánto debería comer un bebé de 3 semanas?","urgent":false,"intent":"ask_guidance"}
+{"text":"¿es normal que tenga hipo después de comer?","urgent":false,"intent":"ask_guidance"}
+{"text":"how should a newborn sleep, on the back or side?","urgent":false,"intent":"ask_guidance"}
+{"text":"¿cuándo se cae el cordón umbilical?","urgent":false,"intent":"ask_guidance"}
+{"text":"how many wet diapers a day is normal at one week?","urgent":false,"intent":"ask_guidance"}
+{"text":"¿cómo sé si se agarra bien al pecho?","urgent":false,"intent":"ask_guidance"}
+{"text":"gracias!","urgent":false,"intent":"other"}
+{"text":"hola","urgent":false,"intent":"other"}
+{"text":"what can you do?","urgent":false,"intent":"other"}
+{"text":"borra lo último","urgent":false,"intent":"other"}
+{"text":"tiene 3 semanas y 38,5 de fiebre","urgent":true,"intent":"ask_guidance"}
+{"text":"le cuesta respirar y se le hunden las costillas","urgent":true,"intent":"ask_guidance"}
+{"text":"tiene los labios morados","urgent":true,"intent":"other"}
+{"text":"no consigo despertarlo y está muy flojo","urgent":true,"intent":"ask_guidance"}
+{"text":"my 2 week old has a fever of 38.2","urgent":true,"intent":"ask_guidance"}
+{"text":"she had a seizure a minute ago","urgent":true,"intent":"other"}
+{"text":"no ha mojado el pañal en 12 horas y no quiere comer","urgent":true,"intent":"ask_guidance"}
+{"text":"tomó 60 ml y vomitó un poco, pero está bien","urgent":false,"intent":"log_event"}
+{"text":"tiene un poco de mocos, ¿es normal?","urgent":false,"intent":"ask_guidance"}
