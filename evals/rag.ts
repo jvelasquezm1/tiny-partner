@@ -7,14 +7,13 @@
  *   no-source correct  unanswerable questions get the "no reliable source" reply
  *   faithfulness       Claude as judge: is every claim in the reply supported by the passages it cited?
  *
- * Spends tokens on Voyage, Jev and Claude.
+ * Spends tokens on Jev and Claude (embeddings are local).
  */
 import { readFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import pg from "pg";
-import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
 import { Embedder } from "../src/rag/embedder.js";
 import { GuidanceAnswerer, NO_SOURCE_REPLY } from "../src/rag/guidance-answerer.js";
@@ -31,7 +30,7 @@ const Verdict = z.object({
   unsupportedClaims: z.array(z.string()),
 });
 
-const env = z.object({ DATABASE_URL: z.url(), VOYAGE_API_KEY: z.string().min(1) }).parse(process.env);
+const env = z.object({ DATABASE_URL: z.url() }).parse(process.env);
 const cases: Case[] = (await readFile(new URL("./rag.jsonl", import.meta.url), "utf8").catch(() => {
   throw new Error("evals/rag.jsonl not found: copy rag.example.jsonl and label questions against your own sources");
 }))
@@ -42,7 +41,7 @@ const cases: Case[] = (await readFile(new URL("./rag.jsonl", import.meta.url), "
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 const anthropic = new Anthropic();
 const retriever = new Retriever(
-  new Embedder(new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY })),
+  new Embedder(),
   new GuidanceRepository(pool),
   new TypeSafeClient(),
 );

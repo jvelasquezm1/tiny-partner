@@ -21,10 +21,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.2.0",
+    "@huggingface/transformers": "^4.3.1",
     "@typesafe-ai/sdk": "^0.7.0",
     "grammy": "^1.46.0",
     "pg": "^8.23.1",
-    "voyageai": "^0.4.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

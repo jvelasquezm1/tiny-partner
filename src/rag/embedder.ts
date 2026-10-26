@@ -1,35 +1,35 @@
-import type { VoyageAIClient } from "voyageai";
+import { pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
 
-export const EMBEDDING_MODEL = "voyage-4";
-/** Must match the vector(...) dimension in migrations/001_init.sql. */
-export const EMBEDDING_DIMENSION = 1024;
-const MAX_BATCH = 128;
+/**
+ * Local embeddings: no API key, no per-token cost. Multilingual (Spanish and English questions
+ * match English or Spanish sources), MIT licensed, quantized to run on a small CPU.
+ * The model downloads once on first use and is cached on disk.
+ */
+export const EMBEDDING_MODEL = "Xenova/multilingual-e5-small";
+/** Must match the vector(...) dimension in the latest guidance_chunks migration. */
+export const EMBEDDING_DIMENSION = 384;
+const BATCH = 16;
 
 export class Embedder {
-  constructor(private readonly client: VoyageAIClient) {}
+  private extractor: Promise<FeatureExtractionPipeline> | null = null;
 
   async embedDocuments(texts: string[]): Promise<number[][]> {
     const vectors: number[][] = [];
-    for (let i = 0; i < texts.length; i += MAX_BATCH) {
-      vectors.push(...(await this.embed(texts.slice(i, i + MAX_BATCH), "document")));
+    // e5 models are trained with these prefixes; leaving them out degrades retrieval.
+    for (let i = 0; i < texts.length; i += BATCH) {
+      vectors.push(...(await this.embed(texts.slice(i, i + BATCH).map((text) => `passage: ${text}`))));
     }
     return vectors;
   }
 
   async embedQuery(text: string): Promise<number[]> {
-    const [vector] = await this.embed([text], "query");
+    const [vector] = await this.embed([`query: ${text}`]);
     return vector!;
   }
 
-  private async embed(input: string[], inputType: "query" | "document"): Promise<number[][]> {
-    const response = await this.client.embed({
-      input,
-      model: EMBEDDING_MODEL,
-      inputType,
-      outputDimension: EMBEDDING_DIMENSION,
-    });
-    return (response.data ?? [])
-      .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-      .map((item) => item.embedding ?? []);
+  private async embed(input: string[]): Promise<number[][]> {
+    this.extractor ??= pipeline("feature-extraction", EMBEDDING_MODEL, { dtype: "q8" });
+    const output = await (await this.extractor)(input, { pooling: "mean", normalize: true });
+    return output.tolist() as number[][];
   }
 }

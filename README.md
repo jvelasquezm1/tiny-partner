@@ -16,7 +16,7 @@ Telegram message
       │ intent: log | ask_about_data | ask_guidance | other
       ├─ log ───────────▶ Claude structured output (Zod) ─▶ Postgres
       ├─ ask_about_data ▶ Claude + tools (last_event, events_between) ─▶ answer
-      └─ ask_guidance ──▶ Voyage embedding ─▶ pgvector + full text (rank fusion)
+      └─ ask_guidance ──▶ local embedding (e5-small) ─▶ pgvector + full text (rank fusion)
                               ─▶ Jev triage ("does this passage help?") ─▶ Claude with citations
 ```
 

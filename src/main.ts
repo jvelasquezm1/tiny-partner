@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { Bot } from "grammy";
 import pg from "pg";
-import { VoyageAIClient } from "voyageai";
 import { DataAnswerer } from "./answer/data-answerer.js";
 import { registerHandlers } from "./bot.js";
 import { EventsRepository } from "./db/events-repository.js";
@@ -20,7 +19,7 @@ const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 const jev = new TypeSafeClient({ apiKey: env.TYPESAFE_API_KEY });
 const events = new EventsRepository(pool);
 const retriever = new Retriever(
-  new Embedder(new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY })),
+  new Embedder(),
   new GuidanceRepository(pool),
   jev,
 );

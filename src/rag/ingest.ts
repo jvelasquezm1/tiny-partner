@@ -10,7 +10,6 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import pg from "pg";
-import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
 import { chunkMarkdown } from "./chunk.js";
 import { Embedder } from "./embedder.js";
@@ -18,10 +17,10 @@ import { GuidanceRepository } from "./guidance-repository.js";
 
 const FrontMatter = z.object({ title: z.string().min(1), url: z.url() });
 
-const env = z.object({ DATABASE_URL: z.url(), VOYAGE_API_KEY: z.string().min(1) }).parse(process.env);
+const env = z.object({ DATABASE_URL: z.url() }).parse(process.env);
 const dir = new URL("../../guidance/", import.meta.url);
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
-const embedder = new Embedder(new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY }));
+const embedder = new Embedder();
 const guidance = new GuidanceRepository(pool);
 
 try {

@@ -4,7 +4,6 @@ const EnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   ANTHROPIC_API_KEY: z.string().min(1),
   TYPESAFE_API_KEY: z.string().min(1),
-  VOYAGE_API_KEY: z.string().min(1),
   DATABASE_URL: z.url(),
   ALLOWED_TELEGRAM_USER_IDS: z
     .string()
