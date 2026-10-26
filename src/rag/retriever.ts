@@ -21,11 +21,19 @@ export class Retriever {
   ) {}
 
   async retrieve(question: string): Promise<GuidanceChunk[]> {
+    return this.triage(question, await this.candidates(question));
+  }
+
+  /** Hybrid search only, before triage. Public so the eval can measure each stage. */
+  async candidates(question: string): Promise<GuidanceChunk[]> {
     const [byMeaning, byWords] = [
       await this.guidance.nearest(await this.embedder.embedQuery(question), CANDIDATES_PER_SEARCH),
       await this.guidance.fullText(question, CANDIDATES_PER_SEARCH),
     ];
-    const candidates = reciprocalRankFusion([byMeaning, byWords], (chunk) => chunk.id).slice(0, CANDIDATES_TO_TRIAGE);
+    return reciprocalRankFusion([byMeaning, byWords], (chunk) => chunk.id).slice(0, CANDIDATES_TO_TRIAGE);
+  }
+
+  async triage(question: string, candidates: GuidanceChunk[]): Promise<GuidanceChunk[]> {
     if (candidates.length === 0) return [];
 
     const questions: Record<string, NoulQuestion> = {};

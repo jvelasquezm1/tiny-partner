@@ -18,8 +18,13 @@ export class GuidanceAnswerer {
   ) {}
 
   async answer(question: string): Promise<string> {
+    return (await this.respond(question)).text;
+  }
+
+  /** The reply plus the passages it was grounded on, so the eval can judge faithfulness. */
+  async respond(question: string): Promise<{ text: string; passages: GuidanceChunk[] }> {
     const passages = await this.retriever.retrieve(question);
-    if (passages.length === 0) return NO_SOURCE_REPLY;
+    if (passages.length === 0) return { text: NO_SOURCE_REPLY, passages };
 
     const response = await this.client.beta.messages.create({
       model: "claude-opus-5-5",
@@ -43,9 +48,9 @@ export class GuidanceAnswerer {
         },
       ],
     });
-    if (response.stop_reason === "refusal") return NO_SOURCE_REPLY;
+    if (response.stop_reason === "refusal") return { text: NO_SOURCE_REPLY, passages };
 
-    return renderWithCitations(
+    const text = renderWithCitations(
       response.content.flatMap((block) =>
         block.type === "text"
           ? [{ text: block.text, documentIndexes: (block.citations ?? []).flatMap((c) => ("document_index" in c ? [c.document_index] : [])) }]
@@ -53,6 +58,7 @@ export class GuidanceAnswerer {
       ),
       passages,
     );
+    return { text, passages };
   }
 }
 
