@@ -2,7 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { BabyEventSchema, type BabyEvent } from "./event-schema.js";
 
-export const EXTRACTION_MODEL = "claude-opus-5-5";
+// Haiku: extraction runs on every logged event, so it is the cheapest model that passes eval:extraction.
+export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
 const SYSTEM = `You turn a parent's short message about their baby into one structured event.
 Resolve relative times ("at 3", "an hour ago", "just now") against the current time you are given, in the parent's time zone.
@@ -16,7 +17,7 @@ export class EventExtractor {
     const response = await this.client.messages.parse({
       model: EXTRACTION_MODEL,
       max_tokens: 1024,
-      output_config: { effort: "low", format: zodOutputFormat(BabyEventSchema) },
+      output_config: { format: zodOutputFormat(BabyEventSchema) },
       system: SYSTEM,
       messages: [{ role: "user", content: `Current time: ${now.toISOString()} (${timeZone})\nMessage: ${text}` }],
     });

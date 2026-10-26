@@ -14,7 +14,7 @@ Telegram message
       ▼
  Jev (System 1)  ── urgent? ──────────────▶ fixed safety reply (no LLM)
       │ intent: log | ask_about_data | ask_guidance | other
-      ├─ log ───────────▶ Claude structured output (Zod) ─▶ Postgres
+      ├─ log ───────────▶ Claude Haiku structured output (Zod) ─▶ Postgres
       ├─ ask_about_data ▶ common question? (Jev) ─▶ SQL + template, no LLM
       │                   otherwise ─▶ Claude + tools (last_event, events_between)
       └─ ask_guidance ──▶ local embedding (e5-small) ─▶ pgvector + full text (rank fusion)
@@ -28,6 +28,7 @@ Telegram message
 - **Safety is a branch, not a prompt.** The urgency check runs before any generative model and short-circuits to a fixed reply.
 - **Typed end to end.** Zod schemas validate Claude's structured output; Jev's SDK infers answer types from the questions.
 - **Dependencies injected** into the bot handlers, so routing is unit-tested without network calls.
+- **Pay for a model only when it adds something.** Common data questions ("when did she last eat?") are answered with SQL and a template. Extraction runs on Claude Haiku. Embeddings run locally (multilingual-e5-small, quantized), so search has no API cost; everything, vectors included, lives in one Postgres.
 - **Grounded or silent.** Guidance answers use Claude's native citations over the retrieved passages. An answer that cites nothing is discarded and replaced with "no reliable source, ask your pediatrician".
 - **Hybrid retrieval.** Vector search catches paraphrases ("toma" vs "feed"); full text catches exact terms (drug names, ages). Reciprocal rank fusion merges them without comparing incompatible scores.
 - **Evals in CI.** Extraction accuracy is scored field by field against labeled messages and fails the PR below 90%.
