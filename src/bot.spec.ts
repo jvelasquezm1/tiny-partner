@@ -1,6 +1,7 @@
 import type { Context } from "grammy";
 import { describe as suite, expect, it, vi } from "vitest";
-import { describe, handleText, URGENT_REPLY, type BotDeps } from "./bot.js";
+import { describe, handleText, UNAVAILABLE_REPLY, URGENT_REPLY, type BotDeps } from "./bot.js";
+import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { Decision } from "./decide/decider.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 
@@ -43,6 +44,14 @@ suite("handleText", () => {
     await handleText(ctx, "tomó 120 ml a las 4", deps);
     expect(deps.events.insert).toHaveBeenCalledWith(7, feed, "tomó 120 ml a las 4");
     expect(reply).toHaveBeenCalledWith("✅ Toma 15:00, 120 ml");
+  });
+
+  it("tells the parent to call emergency services when no decider is available", async () => {
+    const { ctx, deps, reply } = setup({ type: "route", intent: "other", confidence: 1 });
+    vi.mocked(deps.decider.decide).mockRejectedValue(new DecidersUnavailableError([]));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await handleText(ctx, "no respira bien", deps);
+    expect(reply).toHaveBeenCalledWith(UNAVAILABLE_REPLY);
   });
 
   it("routes data questions to the data answerer", async () => {

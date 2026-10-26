@@ -2,12 +2,16 @@ import type { Bot, Context } from "grammy";
 import type { EventsRepository } from "./db/events-repository.js";
 import type { DataAnswerer } from "./answer/data-answerer.js";
 import type { Decider } from "./decide/decider.js";
+import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { EventExtractor } from "./extract/extract-event.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 import type { GuidanceAnswerer } from "./rag/guidance-answerer.js";
 
 export const URGENT_REPLY =
   "⚠️ Esto puede ser urgente. Llama al 112 o a tu pediatra ahora. Este bot no da consejo médico.";
+// When no decider works we cannot rule out an emergency, so the reply points to one.
+export const UNAVAILABLE_REPLY =
+  "⚠️ Ahora mismo no puedo procesar mensajes. Si es urgente, llama al 112 o a tu pediatra.";
 const OTHER_REPLY =
   "Puedo apuntar tomas, sueño y pañales (\"tomó 120 ml\") y responder sobre lo apuntado (\"¿cuándo comió?\").";
 
@@ -31,7 +35,15 @@ export function registerHandlers(bot: Bot, deps: BotDeps): void {
 export async function handleText(ctx: Context, text: string, deps: BotDeps): Promise<void> {
   const chatId = ctx.chat!.id;
   const now = new Date();
-  const { decision } = await deps.decider.decide(text);
+  let decision;
+  try {
+    ({ decision } = await deps.decider.decide(text));
+  } catch (error) {
+    if (!(error instanceof DecidersUnavailableError)) throw error;
+    console.error("no decider available", error.causes);
+    await ctx.reply(UNAVAILABLE_REPLY);
+    return;
+  }
 
   if (decision.type === "urgent") {
     await ctx.reply(URGENT_REPLY);
