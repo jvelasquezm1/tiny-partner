@@ -15,7 +15,8 @@ Telegram message
  Jev (System 1)  ── urgent? ──────────────▶ fixed safety reply (no LLM)
       │ intent: log | ask_about_data | ask_guidance | other
       ├─ log ───────────▶ Claude structured output (Zod) ─▶ Postgres
-      ├─ ask_about_data ▶ Claude + tools (last_event, events_between) ─▶ answer
+      ├─ ask_about_data ▶ common question? (Jev) ─▶ SQL + template, no LLM
+      │                   otherwise ─▶ Claude + tools (last_event, events_between)
       └─ ask_guidance ──▶ local embedding (e5-small) ─▶ pgvector + full text (rank fusion)
                               ─▶ Jev triage ("does this passage help?") ─▶ Claude with citations
 ```

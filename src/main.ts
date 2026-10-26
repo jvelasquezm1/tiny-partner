@@ -29,7 +29,7 @@ registerHandlers(bot, {
   decider: new MessageDecider(jev),
   extractor: new EventExtractor(anthropic),
   events,
-  dataAnswerer: new DataAnswerer(anthropic, events),
+  dataAnswerer: new DataAnswerer(anthropic, jev, events),
   guidanceAnswerer: new GuidanceAnswerer(anthropic, retriever),
   allowedUserIds: env.ALLOWED_TELEGRAM_USER_IDS,
   timeZone: env.TZ,
