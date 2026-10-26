@@ -1,7 +1,7 @@
 import type { Bot, Context } from "grammy";
 import type { EventsRepository } from "./db/events-repository.js";
 import type { DataAnswerer } from "./answer/data-answerer.js";
-import type { MessageDecider } from "./decide/message-decider.js";
+import type { Decider } from "./decide/decider.js";
 import type { EventExtractor } from "./extract/extract-event.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 import type { GuidanceAnswerer } from "./rag/guidance-answerer.js";
@@ -12,7 +12,7 @@ const OTHER_REPLY =
   "Puedo apuntar tomas, sueño y pañales (\"tomó 120 ml\") y responder sobre lo apuntado (\"¿cuándo comió?\").";
 
 export interface BotDeps {
-  decider: MessageDecider;
+  decider: Decider;
   extractor: EventExtractor;
   events: EventsRepository;
   dataAnswerer: DataAnswerer;
@@ -31,7 +31,7 @@ export function registerHandlers(bot: Bot, deps: BotDeps): void {
 export async function handleText(ctx: Context, text: string, deps: BotDeps): Promise<void> {
   const chatId = ctx.chat!.id;
   const now = new Date();
-  const decision = await deps.decider.decide(text);
+  const { decision } = await deps.decider.decide(text);
 
   if (decision.type === "urgent") {
     await ctx.reply(URGENT_REPLY);

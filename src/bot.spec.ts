@@ -1,7 +1,7 @@
 import type { Context } from "grammy";
 import { describe as suite, expect, it, vi } from "vitest";
 import { describe, handleText, URGENT_REPLY, type BotDeps } from "./bot.js";
-import type { Decision } from "./decide/message-decider.js";
+import type { Decision } from "./decide/decider.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 
 const feed: BabyEvent = {
@@ -18,7 +18,7 @@ function setup(decision: Decision) {
   const reply = vi.fn();
   const ctx = { chat: { id: 7 }, reply } as unknown as Context;
   const deps = {
-    decider: { decide: vi.fn().mockResolvedValue(decision) },
+    decider: { name: "fake", decide: vi.fn().mockResolvedValue({ decision, usage: { inputTokens: 0, outputTokens: 0 } }) },
     extractor: { extract: vi.fn().mockResolvedValue(feed) },
     events: { insert: vi.fn().mockResolvedValue(1) },
     dataAnswerer: { answer: vi.fn().mockResolvedValue("Hace 2 horas.") },
