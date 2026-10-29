@@ -7,6 +7,9 @@
  *   ---
  *
  * Only add content whose license allows reuse, and keep the url pointing at the original.
+ *
+ * guidance/ is the source of truth and the table is an index rebuilt from it: sources whose file
+ * is gone are deleted. Runs on every deploy, before the bot starts.
  */
 import { readdir, readFile } from "node:fs/promises";
 import pg from "pg";
@@ -24,13 +27,18 @@ const embedder = new Embedder();
 const guidance = new GuidanceRepository(pool);
 
 try {
+  const ingestedUrls: string[] = [];
   for (const file of (await readdir(dir)).filter((name) => name.endsWith(".md") && name !== "README.md")) {
     const { meta, body } = parse(await readFile(new URL(file, dir), "utf8"), file);
     const chunks = chunkMarkdown(body);
     const embeddings = await embedder.embedDocuments(chunks);
     await guidance.replaceSource(meta.title, meta.url, chunks.map((content, i) => ({ content, embedding: embeddings[i]! })));
     console.log(`${file}: ${chunks.length} chunks`);
+    ingestedUrls.push(meta.url);
   }
+  // Only reached when every file ingested: a failure above leaves the previous index intact.
+  const removed = await guidance.deleteSourcesExcept(ingestedUrls);
+  if (removed) console.log(`removed ${removed} chunks of sources no longer in guidance/`);
 } finally {
   await pool.end();
 }

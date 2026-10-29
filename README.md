@@ -29,6 +29,7 @@ Telegram message
 - **Degrade, never go silent.** If Jev is down, Claude takes over routing, data questions and retrieval (dropping only the triage step). If no router works, the bot replies "call 112 if it is urgent" instead of nothing. Without a TypeSafe key the bot starts in that same Claude-only mode.
 - **Typed end to end.** Zod schemas validate Claude's structured output; Jev's SDK infers answer types from the questions.
 - **Dependencies injected** into the bot handlers, so routing is unit-tested without network calls.
+- **Documents live in the repo; the database is an index.** Guides are Markdown files in `guidance/`, reviewed and versioned in git. Every deploy re-ingests them and drops sources whose file is gone, so the vectors can always be rebuilt and a retired guide is never cited.
 - **Pay for a model only when it adds something.** Common data questions ("when did she last eat?") are answered with SQL and a template. Extraction runs on Claude Haiku. Embeddings run locally (multilingual-e5-small, quantized), so search has no API cost; everything, vectors included, lives in one Postgres.
 - **Grounded or silent.** Guidance answers use Claude's native citations over the retrieved passages. An answer that cites nothing is discarded and replaced with "no reliable source, ask your pediatrician".
 - **Hybrid retrieval.** Vector search catches paraphrases ("toma" vs "feed"); full text catches exact terms (drug names, ages). Reciprocal rank fusion merges them without comparing incompatible scores.
@@ -42,7 +43,7 @@ cp .env.example .env          # fill in the keys (TYPESAFE_API_KEY is optional)
 docker compose up -d          # Postgres + pgvector on :5544
 pnpm install
 pnpm db:migrate
-pnpm ingest                   # embeds guidance/*.md (see guidance/README.md)
+pnpm ingest                   # syncs guidance/*.md into Postgres (see guidance/README.md)
 pnpm dev
 ```
 

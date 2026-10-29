@@ -38,6 +38,12 @@ export class GuidanceRepository {
     }
   }
 
+  /** Deletes every source not in `keepUrls`, so a guide removed from guidance/ stops being cited. */
+  async deleteSourcesExcept(keepUrls: string[]): Promise<number> {
+    const { rowCount } = await this.pool.query("DELETE FROM guidance_chunks WHERE source_url <> ALL($1::text[])", [keepUrls]);
+    return rowCount ?? 0;
+  }
+
   async nearest(embedding: number[], limit: number): Promise<GuidanceChunk[]> {
     return this.select("ORDER BY embedding <=> $1::vector LIMIT $2", [toVector(embedding), limit]);
   }
