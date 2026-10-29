@@ -76,8 +76,8 @@ The search metrics need no API key (local embeddings + Postgres), so retrieval c
 
 | Metric | Result |
 |---|---|
-| recall@8 (search) | 90% (18/20) |
-| recall@4 (search) | 85% (17/20) |
+| recall@8 (search) | 95% (19/20) |
+| recall@4 (search) | 90% (18/20) |
 | recall (triage), no-source correct, faithfulness | pending: need Claude and Jev keys |
 
 ## Roadmap

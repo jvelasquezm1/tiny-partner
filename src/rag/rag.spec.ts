@@ -16,6 +16,19 @@ describe("chunkMarkdown", () => {
     expect(chunks.length).toBeGreaterThan(1);
     for (const chunk of chunks) expect(chunk.startsWith("# Feeding")).toBe(true);
   });
+
+  it("prefixes every chunk with its heading path", () => {
+    const chunks = chunkMarkdown("# At 2 months\n\n## Social\n\n- Smiles back\n\n## Speech\n\n- Coos");
+    expect(chunks).toEqual(["# At 2 months\n## Social\n\n- Smiles back", "# At 2 months\n## Speech\n\n- Coos"]);
+  });
+
+  it("splits a list too long for one chunk between its items", () => {
+    const list = Array.from({ length: 12 }, (_, i) => `- Tip ${i}: ${"word ".repeat(10).trim()}`).join("\n");
+    const chunks = chunkMarkdown(`# Tips\n\n${list}`, { maxChars: 300, overlapChars: 50 });
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) expect(chunk.length).toBeLessThanOrEqual(300);
+    expect(chunks.at(-1)).toContain("- Tip 11:");
+  });
 });
 
 describe("reciprocalRankFusion", () => {
