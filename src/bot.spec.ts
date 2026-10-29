@@ -33,7 +33,7 @@ function setup(decision: Decision) {
 suite("handleText", () => {
   it("answers an urgent message with the fixed safety reply and never calls an LLM", async () => {
     const { ctx, deps, reply } = setup({ type: "urgent", probability: 0.9 });
-    await handleText(ctx, "tiene 39 de fiebre y 2 semanas", deps);
+    expect(await handleText(ctx, "tiene 39 de fiebre y 2 semanas", deps)).toBe("urgent");
     expect(reply).toHaveBeenCalledWith(URGENT_REPLY);
     expect(deps.extractor.extract).not.toHaveBeenCalled();
     expect(deps.dataAnswerer.answer).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ suite("handleText", () => {
     const { ctx, deps, reply } = setup({ type: "route", intent: "other", confidence: 1 });
     vi.mocked(deps.decider.decide).mockRejectedValue(new DecidersUnavailableError([]));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    await handleText(ctx, "no respira bien", deps);
+    expect(await handleText(ctx, "no respira bien", deps)).toBe("unavailable");
     expect(reply).toHaveBeenCalledWith(UNAVAILABLE_REPLY);
   });
 
