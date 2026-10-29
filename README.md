@@ -38,6 +38,7 @@ Telegram message
 
 ```sh
 cp .env.example .env          # fill in the keys (TYPESAFE_API_KEY is optional)
+                              # or OFFLINE_MODE=true: no keys, keyword rules instead of models
 docker compose up -d          # Postgres + pgvector on :5544
 pnpm install
 pnpm db:migrate

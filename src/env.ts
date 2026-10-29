@@ -2,7 +2,12 @@ import { z } from "zod";
 
 const EnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
-  ANTHROPIC_API_KEY: z.string().min(1),
+  // Keyword rules instead of model calls, to try the bot without an API key (see offline.ts).
+  OFFLINE_MODE: z.stringbool().default(false),
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((key) => key || undefined),
   // Optional: without it the bot runs on Claude alone (see main.ts).
   TYPESAFE_API_KEY: z
     .string()
@@ -13,6 +18,9 @@ const EnvSchema = z.object({
     .string()
     .transform((ids) => new Set(ids.split(",").map((id) => Number(id.trim())).filter(Boolean))),
   TZ: z.string().default("Europe/Madrid"),
+}).refine((env) => env.OFFLINE_MODE || env.ANTHROPIC_API_KEY, {
+  message: "ANTHROPIC_API_KEY is required unless OFFLINE_MODE=true",
+  path: ["ANTHROPIC_API_KEY"],
 });
 
 export type Env = z.infer<typeof EnvSchema>;

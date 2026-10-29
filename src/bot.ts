@@ -17,10 +17,10 @@ const OTHER_REPLY =
 
 export interface BotDeps {
   decider: Decider;
-  extractor: EventExtractor;
+  extractor: Pick<EventExtractor, "extract">;
   events: EventsRepository;
-  dataAnswerer: DataAnswerer;
-  guidanceAnswerer: GuidanceAnswerer;
+  dataAnswerer: Pick<DataAnswerer, "answer">;
+  guidanceAnswerer: Pick<GuidanceAnswerer, "answer">;
   allowedUserIds: Set<number>;
   timeZone: string;
 }
