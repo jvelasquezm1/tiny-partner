@@ -57,7 +57,7 @@ pnpm dev
 | `pnpm typecheck` | TypeScript |
 | `pnpm eval:extraction` | Extraction accuracy, field by field (costs tokens) |
 | `pnpm eval:routing` | Router benchmark: Jev vs Claude (costs tokens) |
-| `pnpm eval:rag` | Retrieval recall, no-source behavior and faithfulness (costs tokens) |
+| `pnpm eval:rag` | Retrieval recall (free); no-source behavior and faithfulness with keys (costs tokens) |
 
 ## Evals
 
@@ -65,11 +65,20 @@ pnpm dev
 
 <!-- Paste evals/results/routing.md here after running pnpm eval:routing -->
 
-**RAG** (`evals/rag.jsonl`, labeled against the ingested sources):
-- *recall@8 (search)*: the right source is among the hybrid-search candidates.
+**RAG** (`evals/rag.jsonl`: 20 questions labeled with the phrase that answers them, plus 4 no source answers):
+- *recall@8 (search)*: the chunk that answers is among the hybrid-search candidates.
+- *recall@4 (search)*: it is in the top 4, what reaches Claude when triage is skipped.
 - *recall (triage)*: it survives Jev's relevance check.
 - *no-source correct*: questions no source answers get "ask your pediatrician", not an improvised answer.
 - *faithfulness*: Claude as judge lists any claim the cited passages do not support.
+
+The search metrics need no API key (local embeddings + Postgres), so retrieval changes are measured for free.
+
+| Metric | Result |
+|---|---|
+| recall@8 (search) | 90% (18/20) |
+| recall@4 (search) | 85% (17/20) |
+| recall (triage), no-source correct, faithfulness | pending: need Claude and Jev keys |
 
 ## Roadmap
 
