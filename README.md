@@ -35,6 +35,10 @@ Telegram message
 - **Hybrid retrieval.** Vector search catches paraphrases ("toma" vs "feed"); full text catches exact terms (drug names, ages). Reciprocal rank fusion merges them without comparing incompatible scores.
 - **Evals in CI.** Extraction accuracy is scored field by field against labeled messages and fails the PR below 90%.
 
+## Guidance sources
+
+Answers cite public-domain pages from the U.S. Centers for Disease Control and Prevention (CDC), in Spanish. Their use does not imply endorsement by the CDC. See [`guidance/README.md`](guidance/README.md) for the list and what was left out.
+
 ## Run locally
 
 ```sh
