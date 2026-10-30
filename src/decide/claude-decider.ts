@@ -3,12 +3,12 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { INTENT_DESCRIPTIONS, INTENTS, URGENT_DESCRIPTION, type Decided, type Decider, type Intent } from "./decider.js";
 
-const DecisionSchema = z.object({
+export const DecisionSchema = z.object({
   urgent: z.boolean().describe(`True when the parent describes ${URGENT_DESCRIPTION}`),
   intent: z.enum(INTENTS as [Intent, ...Intent[]]),
 });
 
-const SYSTEM = `Classify a parent's message about their baby.
+export const DECIDER_SYSTEM = `Classify a parent's message about their baby.
 Intents:
 ${Object.entries(INTENT_DESCRIPTIONS).map(([intent, description]) => `- ${intent}: ${description}`).join("\n")}`;
 
@@ -23,7 +23,7 @@ export class ClaudeDecider implements Decider {
       model: "claude-opus-5-5",
       max_tokens: 1024,
       output_config: { effort: "low", format: zodOutputFormat(DecisionSchema) },
-      system: SYSTEM,
+      system: DECIDER_SYSTEM,
       messages: [{ role: "user", content: text }],
     });
     const parsed = response.parsed_output;

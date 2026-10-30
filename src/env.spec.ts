@@ -18,9 +18,10 @@ describe("loadEnv", () => {
     expect(loadEnv({ ...required, TYPESAFE_API_KEY: "ts-test" }).TYPESAFE_API_KEY).toBe("ts-test");
   });
 
-  it("requires an Anthropic key unless OFFLINE_MODE is on", () => {
+  it("requires an Anthropic or Gemini key unless OFFLINE_MODE is on", () => {
     const { ANTHROPIC_API_KEY: _, ...withoutKey } = required;
-    expect(() => loadEnv(withoutKey)).toThrow(/ANTHROPIC_API_KEY is required/);
+    expect(() => loadEnv(withoutKey)).toThrow(/ANTHROPIC_API_KEY or GEMINI_API_KEY is required/);
+    expect(loadEnv({ ...withoutKey, GEMINI_API_KEY: "gm-test" }).GEMINI_API_KEY).toBe("gm-test");
     expect(loadEnv({ ...withoutKey, OFFLINE_MODE: "true" }).OFFLINE_MODE).toBe(true);
   });
 });

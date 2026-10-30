@@ -8,6 +8,11 @@ const EnvSchema = z.object({
     .string()
     .optional()
     .transform((key) => key || undefined),
+  // Used only when ANTHROPIC_API_KEY is not set: Gemini stands in for Claude (see main.ts).
+  GEMINI_API_KEY: z
+    .string()
+    .optional()
+    .transform((key) => key || undefined),
   // Optional: without it the bot runs on Claude alone (see main.ts).
   TYPESAFE_API_KEY: z
     .string()
@@ -18,8 +23,8 @@ const EnvSchema = z.object({
     .string()
     .transform((ids) => new Set(ids.split(",").map((id) => Number(id.trim())).filter(Boolean))),
   TZ: z.string().default("Europe/Madrid"),
-}).refine((env) => env.OFFLINE_MODE || env.ANTHROPIC_API_KEY, {
-  message: "ANTHROPIC_API_KEY is required unless OFFLINE_MODE=true",
+}).refine((env) => env.OFFLINE_MODE || env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY, {
+  message: "ANTHROPIC_API_KEY or GEMINI_API_KEY is required unless OFFLINE_MODE=true",
   path: ["ANTHROPIC_API_KEY"],
 });
 

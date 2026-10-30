@@ -20,7 +20,7 @@ import { TypeSafeClient } from "@typesafe-ai/sdk";
 import pg from "pg";
 import { z } from "zod";
 import { Embedder } from "../src/rag/embedder.js";
-import { GuidanceAnswerer, NO_SOURCE_REPLY } from "../src/rag/guidance-answerer.js";
+import { ClaudeWriter, GuidanceAnswerer, NO_SOURCE_REPLY } from "../src/rag/guidance-answerer.js";
 import { GuidanceRepository, type GuidanceChunk } from "../src/rag/guidance-repository.js";
 import { Retriever } from "../src/rag/retriever.js";
 
@@ -50,7 +50,7 @@ const cases: Case[] = (await readFile(new URL("./rag.jsonl", import.meta.url), "
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 const anthropic = withModels ? new Anthropic() : null;
 const retriever = new Retriever(new Embedder(), new GuidanceRepository(pool), withModels ? new TypeSafeClient() : null);
-const answerer = anthropic ? new GuidanceAnswerer(anthropic, retriever) : null;
+const answerer = anthropic ? new GuidanceAnswerer(new ClaudeWriter(anthropic), retriever) : null;
 
 const answerable = cases.filter((c) => c.expectedSourceUrl);
 const unanswerable = cases.filter((c) => !c.expectedSourceUrl);

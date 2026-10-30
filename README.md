@@ -27,6 +27,7 @@ Telegram message
 
 - **Safety is a branch, not a prompt.** The urgency check runs before any generative model and short-circuits to a fixed reply.
 - **Degrade, never go silent.** If Jev is down, Claude takes over routing, data questions and retrieval (dropping only the triage step). If no router works, the bot replies "call 112 if it is urgent" instead of nothing. Without a TypeSafe key the bot starts in that same Claude-only mode.
+- **One provider swap, not a fork.** Without an Anthropic key the bot runs on Gemini (`src/gemini/`): same prompts, Zod schemas and log tools behind the same interfaces (`Decider`, `DataAgent`, `GroundedWriter`). Gemini has no citations API, so it reports which passage backs each sentence; that is weaker than Claude's span-level citations, but the same "cites nothing, says nothing" gate applies. Evals still run on Claude.
 - **Typed end to end.** Zod schemas validate Claude's structured output; Jev's SDK infers answer types from the questions.
 - **Dependencies injected** into the bot handlers, so routing is unit-tested without network calls.
 - **Documents live in the repo; the database is an index.** Guides are Markdown files in `guidance/`, reviewed and versioned in git. Every deploy re-ingests them and drops sources whose file is gone, so the vectors can always be rebuilt and a retired guide is never cited.
@@ -42,7 +43,7 @@ Answers cite public-domain pages from the U.S. Centers for Disease Control and P
 ## Run locally
 
 ```sh
-cp .env.example .env          # fill in the keys (TYPESAFE_API_KEY is optional)
+cp .env.example .env          # fill in the keys (TYPESAFE_API_KEY is optional; GEMINI_API_KEY replaces Claude)
                               # or OFFLINE_MODE=true: no keys, keyword rules instead of models
 docker compose up -d          # Postgres + pgvector on :5544
 pnpm install

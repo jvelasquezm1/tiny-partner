@@ -5,15 +5,21 @@ import type { Retriever } from "./retriever.js";
 export const NO_SOURCE_REPLY =
   "No tengo una fuente fiable para responder eso. Consúltalo con tu pediatra.";
 const DISCLAIMER = "ℹ️ Información general, no consejo médico.";
-const NO_SOURCE_MARKER = "NO_SOURCE";
+export const NO_SOURCE_MARKER = "NO_SOURCE";
 
-const SYSTEM = `You answer a new parent's general baby care question using only the documents provided.
+export const GUIDANCE_SYSTEM = `You answer a new parent's general baby care question using only the documents provided.
 Every factual sentence must be supported by the documents. If they do not answer the question, reply with exactly ${NO_SOURCE_MARKER}.
 Answer in the parent's language, in at most four short sentences. Do not diagnose or recommend treatment.`;
 
+/** Writes an answer from the passages and says which passage backs each part. One per model provider. */
+export interface GroundedWriter {
+  /** Null when the model refuses. */
+  write(question: string, passages: GuidanceChunk[]): Promise<CitedText[] | null>;
+}
+
 export class GuidanceAnswerer {
   constructor(
-    private readonly client: Anthropic,
+    private readonly writer: GroundedWriter,
     private readonly retriever: Retriever,
   ) {}
 
@@ -26,13 +32,23 @@ export class GuidanceAnswerer {
     const passages = await this.retriever.retrieve(question);
     if (passages.length === 0) return { text: NO_SOURCE_REPLY, passages };
 
+    const blocks = await this.writer.write(question, passages);
+    return { text: blocks ? renderWithCitations(blocks, passages) : NO_SOURCE_REPLY, passages };
+  }
+}
+
+/** Claude's citations API ties every text block to the documents it quotes. */
+export class ClaudeWriter implements GroundedWriter {
+  constructor(private readonly client: Anthropic) {}
+
+  async write(question: string, passages: GuidanceChunk[]): Promise<CitedText[] | null> {
     const response = await this.client.beta.messages.create({
       model: "claude-opus-5-5",
       max_tokens: 4096,
       output_config: { effort: "low" },
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
-      system: SYSTEM,
+      system: GUIDANCE_SYSTEM,
       messages: [
         {
           role: "user",
@@ -48,17 +64,13 @@ export class GuidanceAnswerer {
         },
       ],
     });
-    if (response.stop_reason === "refusal") return { text: NO_SOURCE_REPLY, passages };
+    if (response.stop_reason === "refusal") return null;
 
-    const text = renderWithCitations(
-      response.content.flatMap((block) =>
-        block.type === "text"
-          ? [{ text: block.text, documentIndexes: (block.citations ?? []).flatMap((c) => ("document_index" in c ? [c.document_index] : [])) }]
-          : [],
-      ),
-      passages,
+    return response.content.flatMap((block) =>
+      block.type === "text"
+        ? [{ text: block.text, documentIndexes: (block.citations ?? []).flatMap((c) => ("document_index" in c ? [c.document_index] : [])) }]
+        : [],
     );
-    return { text, passages };
   }
 }
 
@@ -68,7 +80,7 @@ export interface CitedText {
 }
 
 /**
- * Turns Claude's cited text blocks into "answer [1][2]" plus a numbered source list.
+ * Turns cited text blocks into "answer [1][2]" plus a numbered source list.
  * An answer without a single citation is not grounded, so it is never shown.
  */
 export function renderWithCitations(blocks: CitedText[], passages: GuidanceChunk[]): string {
