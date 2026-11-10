@@ -96,6 +96,8 @@ export function renderWithCitations(blocks: CitedText[], passages: GuidanceChunk
       return text + markers.map((n) => `[${n}]`).join("");
     })
     .join("")
+    // The model now and then writes its plan as text ("<reasoning>Answer in Spanish…</reasoning>"): never the parent's to read.
+    .replace(/<(reasoning|thinking)>[\s\S]*?<\/\1>/g, "")
     .trim();
 
   if (sourceNumbers.size === 0 || body.includes(NO_SOURCE_MARKER)) return NO_SOURCE_REPLY;

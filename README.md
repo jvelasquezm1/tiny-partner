@@ -34,7 +34,7 @@ Telegram message
 - **Pay for a model only when it adds something.** Common data questions ("when did she last eat?") are answered with SQL and a template. Extraction runs on Claude Haiku. Embeddings run locally (multilingual-e5-small, quantized), so search has no API cost; everything, vectors included, lives in one Postgres.
 - **Ask, never guess, when a time is unclear.** A clock time that could be morning or evening ("a las 9"), or one that has not come yet, gets its readings as buttons ("Ayer 21:00 / Ayer 09:00"), and nothing is saved until the parent picks one. The model flags the ambiguity and the code checks the words too, since the model misses some. Confirmations name the day whenever it is not today.
 - **Grounded or silent.** Guidance answers use Claude's native citations over the retrieved passages. An answer that cites nothing is discarded and replaced with "no reliable source, ask your pediatrician".
-- **Hybrid retrieval.** Vector search catches paraphrases ("toma" vs "feed"); full text catches exact terms (drug names, ages). Reciprocal rank fusion merges them without comparing incompatible scores.
+- **Hybrid retrieval.** Vector search catches paraphrases ("toma" vs "feed"); full text, stemmed as Spanish with its stopwords dropped, catches exact terms (drug names, ages, "malcrío" for "malcriar"). Reciprocal rank fusion merges them without comparing incompatible scores.
 - **Evals in CI.** Extraction accuracy is scored field by field against labeled messages and fails the PR below 90%.
 
 ## Guidance sources
@@ -70,8 +70,8 @@ pnpm dev
 <!-- Paste evals/results/routing.md here after running pnpm eval:routing -->
 
 **RAG** (`evals/rag.jsonl`: 20 questions labeled with the phrase that answers them, plus 4 no source answers):
-- *recall@8 (search)*: the chunk that answers is among the hybrid-search candidates.
-- *recall@4 (search)*: it is in the top 4, what reaches Claude when triage is skipped.
+- *recall@8 (search)*: the chunk that answers is among the hybrid-search candidates, what reaches Claude when triage is skipped (no Jev).
+- *recall@4 (search)*: it is in the top 4: how well search alone ranks it.
 - *recall (triage)*: it survives Jev's relevance check.
 - *no-source correct*: questions no source answers get "ask your pediatrician", not an improvised answer.
 - *faithfulness*: Claude as judge lists any claim the cited passages do not support.
@@ -80,8 +80,8 @@ The search metrics need no API key (local embeddings + Postgres), so retrieval c
 
 | Metric | Result |
 |---|---|
-| recall@8 (search) | 95% (19/20) |
-| recall@4 (search) | 90% (18/20) |
+| recall@8 (search) | 100% (20/20) |
+| recall@4 (search) | 95% (19/20) |
 | recall (triage), no-source correct, faithfulness | pending: need Claude and Jev keys |
 
 ## Roadmap

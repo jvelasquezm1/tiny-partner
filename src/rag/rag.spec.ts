@@ -58,6 +58,18 @@ describe("renderWithCitations", () => {
     expect(text).toContain("[1] Feeding guide — https://example.org/feeding\n[2] Sleep guide — https://example.org/sleep");
   });
 
+  it("drops reasoning the model wrote as text", () => {
+    const text = renderWithCitations(
+      [
+        { text: "<reasoning>Answer in Spanish, using doc 3.</reasoning>", documentIndexes: [] },
+        { text: "Boca arriba.", documentIndexes: [2] },
+      ],
+      passages,
+    );
+    expect(text.startsWith("Boca arriba.[1]")).toBe(true);
+    expect(text).not.toContain("reasoning");
+  });
+
   it("refuses an answer that cites nothing", () => {
     expect(renderWithCitations([{ text: "Probably fine.", documentIndexes: [] }], passages)).toBe(NO_SOURCE_REPLY);
   });

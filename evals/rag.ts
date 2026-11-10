@@ -4,8 +4,8 @@
  * Add expectedText, a phrase the answering chunk contains, to score the chunk instead of the whole source:
  * with few sources, "some chunk of the right page" is too easy to hit.
  *
- *   recall@8 (search)  expected chunk among the hybrid-search candidates
- *   recall@4 (search)  expected chunk among the top 4, what reaches Claude when triage is skipped
+ *   recall@8 (search)  expected chunk among the hybrid-search candidates, what reaches Claude when triage is skipped
+ *   recall@4 (search)  expected chunk among the top 4: how well search alone ranks it
  *   recall (triage)    expected chunk still there after Jev's relevance check
  *   no-source correct  unanswerable questions get the "no reliable source" reply
  *   faithfulness       Claude as judge: is every claim in the reply supported by the passages it cited?

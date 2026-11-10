@@ -36,7 +36,9 @@ export class Retriever {
 
   async triage(question: string, candidates: GuidanceChunk[]): Promise<GuidanceChunk[]> {
     if (candidates.length === 0) return [];
-    if (!this.jev) return candidates.slice(0, MAX_PASSAGES);
+    // Without triage every candidate goes through: cutting to the top 4 dropped the chunk that answers
+    // "¿qué debería hacer mi bebé a los 2 meses?" (5th), and Claude rightly found no source in the rest.
+    if (!this.jev) return candidates;
 
     const questions: Record<string, NoulQuestion> = {};
     const passages: Record<string, string> = {};
@@ -48,10 +50,10 @@ export class Retriever {
     try {
       ({ answers } = await this.jev.systemOne({ state: { question, passages }, questions }));
     } catch (error) {
-      // Without triage, pass the top search results through: the answer still has to cite them,
-      // and an uncited answer is replaced by the no-source reply.
+      // Without triage, pass every candidate through, as with no key: the answer still has to cite
+      // them, and an uncited answer is replaced by the no-source reply.
       console.warn("jev unavailable, skipping triage", error);
-      return candidates.slice(0, MAX_PASSAGES);
+      return candidates;
     }
 
     return candidates

@@ -69,10 +69,15 @@ export class GuidanceRepository {
     return this.select("ORDER BY embedding <=> $1::vector LIMIT $2", [toVector(embedding), limit]);
   }
 
+  /**
+   * Every word of the question, stemmed as Spanish with its stopwords dropped ("¿Lo malcrío…?" looks for
+   * malcri & braz): with the 'simple' config "qué", "mi" or "los" had to appear too, and natural
+   * questions found nothing. Matching any word instead was measured and ranked worse.
+   */
   async fullText(query: string, limit: number): Promise<GuidanceChunk[]> {
     return this.select(
-      `WHERE tsv @@ websearch_to_tsquery('simple', $1)
-       ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC LIMIT $2`,
+      `WHERE tsv @@ websearch_to_tsquery('spanish', $1)
+       ORDER BY ts_rank(tsv, websearch_to_tsquery('spanish', $1)) DESC LIMIT $2`,
       [query, limit],
     );
   }
