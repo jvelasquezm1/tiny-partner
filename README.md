@@ -60,7 +60,7 @@ pnpm dev
 | `pnpm eval:routing` | Router benchmark: Jev vs Claude (costs tokens) |
 | `pnpm eval:rag` | Retrieval recall (free); no-source behavior and faithfulness with keys (costs tokens) |
 
-**Admin page.** The bot also serves `http://localhost:4100/admin`, on localhost only and without a login for now. It shows project stats (messages by outcome, urgencies, no-source answers, response time, events per day, the running mode), lists the indexed guides and re-runs the same sync as `pnpm ingest`. Message stats come from a `messages` table with one row per message: what the bot did with it, never its text.
+**Admin page.** The bot also serves `http://localhost:4100/admin`, on localhost only and without a login for now. It shows project stats (messages by outcome, urgencies, no-source answers, response time, events per day, the running mode), lists the indexed guides, adds a guide and re-runs the same sync as `pnpm ingest`. Adding a guide writes the uploaded Markdown into `guidance/` with its front matter and re-syncs; commit the new file, or the next deploy drops it from the index. Message stats come from a `messages` table with one row per message: what the bot did with it, never its text.
 
 ## Evals
 

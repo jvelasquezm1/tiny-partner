@@ -77,9 +77,12 @@
     <div class="section-head">
       <div>
         <h2 id="guidance-title">Guías del RAG</h2>
-        <p class="lede">El bot solo responde y cita a partir de estos documentos. Para añadir uno, crea un <code>.md</code> en <code>guidance/</code> y reindexa.</p>
+        <p class="lede">El bot solo responde y cita a partir de estos documentos, que viven en <code>guidance/</code>. Al añadir una guía se reindexan todas.</p>
       </div>
-      <button id="sync" type="button"><span class="spinner" hidden></span><span class="label">Reindexar guidance/</span></button>
+      <div class="actions">
+        <button id="sync" class="secondary" type="button"><span class="spinner" hidden></span><span class="label">Reindexar guidance/</span></button>
+        <button id="add" type="button">Añadir guía</button>
+      </div>
     </div>
     <p id="sync-notice" class="notice" role="status" hidden></p>
     <div class="tiles">
@@ -91,9 +94,26 @@
     <div class="card list" aria-label="Documentos indexados">
       <div class="row head"><span>Documento</span><span class="num">Fragmentos</span><span class="num">Indexado</span></div>
       <ul id="sources"></ul>
-      <p id="empty" class="empty" hidden>Aún no hay guías indexadas. Añade un <code>.md</code> a <code>guidance/</code> y pulsa Reindexar.</p>
+      <p id="empty" class="empty" hidden>Aún no hay guías indexadas. Pulsa Añadir guía para subir la primera.</p>
     </div>
   </section>
 </main>
+
+<dialog id="add-dialog" aria-labelledby="add-heading">
+  <form id="add-form">
+    <h3 id="add-heading">Añadir guía</h3>
+    <p class="hint">Un archivo Markdown con el contenido de la guía. Solo contenido cuya licencia permita reutilizarlo.</p>
+    <label><span>Archivo <span class="hint">.md</span></span><input id="add-file" type="file" accept=".md,text/markdown" required></label>
+    <label>Título<input id="add-title" maxlength="200" required></label>
+    <label>URL de la fuente<input id="add-url" type="url" placeholder="https://" required>
+      <span class="hint">Cada respuesta del bot que use esta guía cita esta URL.</span></label>
+    <label><span>Fuente y licencia <span class="hint">(opcional)</span></span><input id="add-source" maxlength="200" placeholder="CDC, dominio público"></label>
+    <p id="add-error" class="notice error" role="alert" hidden></p>
+    <div class="actions">
+      <button id="add-cancel" class="secondary" type="button">Cancelar</button>
+      <button id="add-submit" type="submit"><span class="spinner" hidden></span><span class="label">Añadir y reindexar</span></button>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>

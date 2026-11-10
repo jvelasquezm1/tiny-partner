@@ -21,7 +21,7 @@ import { Embedder } from "./rag/embedder.js";
 import { ClaudeWriter, GuidanceAnswerer, type GroundedWriter } from "./rag/guidance-answerer.js";
 import { GuidanceRepository } from "./rag/guidance-repository.js";
 import { Retriever } from "./rag/retriever.js";
-import { syncGuidance } from "./rag/sync-guidance.js";
+import { addGuide, syncGuidance } from "./rag/sync-guidance.js";
 
 const env = loadEnv();
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
@@ -107,6 +107,7 @@ const admin = createAdminServer({
   sources: () => guidance.sources(),
   stats: () => stats.load(),
   sync: () => syncGuidance(guidance, embedder),
+  addGuide: (input) => addGuide(input),
 });
 admin.listen(env.ADMIN_PORT, "127.0.0.1", () => console.log(`admin on http://localhost:${env.ADMIN_PORT}/admin`));
 

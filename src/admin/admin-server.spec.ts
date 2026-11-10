@@ -3,7 +3,7 @@ import { request as httpRequest, type Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SyncResult } from "../rag/sync-guidance.js";
+import { GuideConflictError, InvalidGuideError, type SyncResult } from "../rag/sync-guidance.js";
 import { createAdminServer, type AdminDeps } from "./admin-server.js";
 import type { Stats } from "./stats-repository.js";
 
@@ -25,6 +25,7 @@ async function start(overrides: Partial<AdminDeps> = {}) {
     sources: async () => [source],
     stats: async () => stats,
     sync: async () => synced,
+    addGuide: async () => "nueva.md",
     ...overrides,
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -92,6 +93,30 @@ describe("admin server", () => {
     expect((await request("/admin/api/sync", { method: "POST" })).status).toBe(409);
     finish(synced);
     expect((await first).status).toBe(200);
+  });
+
+  it("adds an uploaded guide, then syncs", async () => {
+    const calls: string[] = [];
+    const { request } = await start({
+      addGuide: async (input) => (calls.push(`add ${(input as { title: string }).title}`), "nueva.md"),
+      sync: async () => (calls.push("sync"), synced),
+    });
+    const response = await request("/admin/api/guides", { method: "POST", body: JSON.stringify({ title: "Nueva" }) });
+    expect(await response.json()).toEqual({ file: "nueva.md", ...synced });
+    expect(calls).toEqual(["add Nueva", "sync"]);
+  });
+
+  it("reports an invalid or conflicting guide to the person adding it, without syncing", async () => {
+    const sync = vi.fn(async () => synced);
+    const invalid = await start({ sync, addGuide: async () => Promise.reject(new InvalidGuideError("Falta el título")) });
+    const response = await invalid.request("/admin/api/guides", { method: "POST", body: "{}" });
+    expect([response.status, await response.json()]).toEqual([400, { error: "Falta el título" }]);
+    server.close();
+
+    const conflict = await start({ sync, addGuide: async () => Promise.reject(new GuideConflictError("Ya existe guidance/a.md")) });
+    expect((await conflict.request("/admin/api/guides", { method: "POST", body: "{}" })).status).toBe(409);
+    expect((await conflict.request("/admin/api/guides", { method: "POST", body: "not json" })).status).toBe(400);
+    expect(sync).not.toHaveBeenCalled();
   });
 
   it("reports a failed sync instead of crashing", async () => {

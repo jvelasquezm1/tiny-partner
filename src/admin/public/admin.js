@@ -113,8 +113,9 @@ function notify(id, kind, text) {
   notice.hidden = false;
 }
 
-async function request(method, path) {
-  const response = await fetch(path, { method });
+async function request(method, path, payload) {
+  const init = payload === undefined ? { method } : { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) };
+  const response = await fetch(path, init);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `Error ${response.status}`);
   return body;
@@ -158,5 +159,50 @@ $("sync").addEventListener("click", () =>
     }
   }),
 );
+
+// Adding a guide: the file's own front matter, or its first heading, fills in the form.
+const dialog = $("add-dialog");
+const form = $("add-form");
+let upload = null;
+
+$("add").addEventListener("click", () => {
+  form.reset();
+  upload = null;
+  $("add-error").hidden = true;
+  dialog.showModal();
+});
+$("add-cancel").addEventListener("click", () => dialog.close());
+
+$("add-file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const content = (await file.text()).replace(/\r\n/g, "\n");
+  upload = { fileName: file.name, content };
+  const front = content.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+  const field = (name) => front.match(new RegExp(`^${name}:\\s*(.+)$`, "m"))?.[1].trim() ?? "";
+  const fill = (id, value) => {
+    if (value && !$(id).value) $(id).value = value;
+  };
+  fill("add-title", field("title") || content.match(/^#\s+(.+)$/m)?.[1].trim());
+  fill("add-url", field("url"));
+  fill("add-source", field("source"));
+});
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!upload) return;
+  const guide = { ...upload, title: $("add-title").value, url: $("add-url").value, source: $("add-source").value };
+  return whileBusy($("add-submit"), "Añadiendo…", async () => {
+    try {
+      const { file, ...synced } = await request("POST", "/admin/api/guides", guide);
+      dialog.close();
+      notify("sync-notice", "ok", `Añadida guidance/${file}. ${syncSummary(synced)} Haz commit del archivo para que no se pierda al desplegar.`);
+      await load();
+    } catch (error) {
+      $("add-error").textContent = `No se pudo añadir: ${error.message}`;
+      $("add-error").hidden = false;
+    }
+  });
+});
 
 load().catch((error) => notify("notice", "error", `No se pudieron cargar los datos: ${error.message}`));
