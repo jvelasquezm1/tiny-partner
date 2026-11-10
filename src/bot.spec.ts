@@ -4,6 +4,7 @@ import { describe, handleText, UNAVAILABLE_REPLY, URGENT_REPLY, type BotDeps } f
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { Decision } from "./decide/decider.js";
 import type { BabyEvent } from "./extract/event-schema.js";
+import { NO_SOURCE_REPLY } from "./rag/guidance-answerer.js";
 
 const feed: BabyEvent = {
   kind: "feed",
@@ -58,6 +59,13 @@ suite("handleText", () => {
     const { ctx, deps, reply } = setup({ type: "route", intent: "ask_about_data", confidence: 0.9 });
     await handleText(ctx, "¿cuándo comió?", deps);
     expect(reply).toHaveBeenCalledWith("Hace 2 horas.");
+  });
+
+  it("tells a sourced guidance answer apart from the no-source reply", async () => {
+    const { ctx, deps } = setup({ type: "route", intent: "ask_guidance", confidence: 0.9 });
+    vi.mocked(deps.guidanceAnswerer.answer).mockResolvedValueOnce("Boca arriba [1].").mockResolvedValueOnce(NO_SOURCE_REPLY);
+    expect(await handleText(ctx, "¿cómo lo acuesto?", deps)).toBe("ask_guidance");
+    expect(await handleText(ctx, "¿qué vacunas le tocan?", deps)).toBe("no_source");
   });
 });
 

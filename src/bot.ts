@@ -1,11 +1,12 @@
 import type { Bot, Context } from "grammy";
 import type { EventsRepository } from "./db/events-repository.js";
+import type { MessagesRepository } from "./db/messages-repository.js";
 import type { DataAnswerer } from "./answer/data-answerer.js";
 import type { Decider, Intent } from "./decide/decider.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { EventExtractor } from "./extract/extract-event.js";
 import type { BabyEvent } from "./extract/event-schema.js";
-import type { GuidanceAnswerer } from "./rag/guidance-answerer.js";
+import { NO_SOURCE_REPLY, type GuidanceAnswerer } from "./rag/guidance-answerer.js";
 
 export const URGENT_REPLY =
   "⚠️ Esto puede ser urgente. Llama al 112 o a tu pediatra ahora. Este bot no da consejo médico.";
@@ -19,6 +20,7 @@ export interface BotDeps {
   decider: Decider;
   extractor: Pick<EventExtractor, "extract">;
   events: EventsRepository;
+  messages: Pick<MessagesRepository, "record">;
   dataAnswerer: Pick<DataAnswerer, "answer">;
   guidanceAnswerer: Pick<GuidanceAnswerer, "answer">;
   allowedUserIds: Set<number>;
@@ -33,13 +35,18 @@ export function registerHandlers(bot: Bot, deps: BotDeps): void {
   bot.on("message:text", async (ctx) => {
     const started = performance.now();
     const outcome = await handleText(ctx, ctx.message.text, deps);
+    const durationMs = Math.round(performance.now() - started);
     // Never the message text: it is the family's data.
-    console.log(`msg chat=${ctx.chat.id} outcome=${outcome} decider=${deps.decider.name} ${Math.round(performance.now() - started)}ms`);
+    console.log(`msg chat=${ctx.chat.id} outcome=${outcome} decider=${deps.decider.name} ${durationMs}ms`);
+    // After the reply: a failed write costs a stat, never an answer.
+    await deps.messages
+      .record({ chatId: ctx.chat.id, outcome, decider: deps.decider.name, durationMs })
+      .catch((error) => console.error("could not record message stats", error));
   });
 }
 
-/** What the bot did with a message, for the log line. */
-export type Outcome = Intent | "urgent" | "unavailable";
+/** What the bot did with a message, for the log line and the admin page's stats. */
+export type Outcome = Intent | "no_source" | "urgent" | "unavailable";
 
 export async function handleText(ctx: Context, text: string, deps: BotDeps): Promise<Outcome> {
   const chatId = ctx.chat!.id;
@@ -69,9 +76,11 @@ export async function handleText(ctx: Context, text: string, deps: BotDeps): Pro
     case "ask_about_data":
       await ctx.reply(await deps.dataAnswerer.answer(chatId, text, now, deps.timeZone));
       return decision.intent;
-    case "ask_guidance":
-      await ctx.reply(await deps.guidanceAnswerer.answer(text));
-      return decision.intent;
+    case "ask_guidance": {
+      const answer = await deps.guidanceAnswerer.answer(text);
+      await ctx.reply(answer);
+      return answer === NO_SOURCE_REPLY ? "no_source" : decision.intent;
+    }
     case "other":
       await ctx.reply(OTHER_REPLY);
       return decision.intent;

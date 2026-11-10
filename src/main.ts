@@ -7,6 +7,7 @@ import { createAdminServer } from "./admin/admin-server.js";
 import { ClaudeDataAgent, DataAnswerer, type DataAgent } from "./answer/data-answerer.js";
 import { registerHandlers } from "./bot.js";
 import { EventsRepository } from "./db/events-repository.js";
+import { MessagesRepository } from "./db/messages-repository.js";
 import { ClaudeDecider } from "./decide/claude-decider.js";
 import type { Decider } from "./decide/decider.js";
 import { FallbackDecider } from "./decide/fallback-decider.js";
@@ -88,6 +89,7 @@ const bot = new Bot(env.TELEGRAM_BOT_TOKEN);
 registerHandlers(bot, {
   ...selectDeps(),
   events,
+  messages: new MessagesRepository(pool),
   allowedUserIds: env.ALLOWED_TELEGRAM_USER_IDS,
   timeZone: env.TZ,
 });
