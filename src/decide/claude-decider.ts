@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { CLAUDE_MODEL } from "../models.js";
 import { INTENT_DESCRIPTIONS, INTENTS, URGENT_DESCRIPTION, type Decided, type Decider, type Intent } from "./decider.js";
 
 export const DecisionSchema = z.object({
@@ -14,15 +15,15 @@ ${Object.entries(INTENT_DESCRIPTIONS).map(([intent, description]) => `- ${intent
 
 /** LLM baseline for the router benchmark: same decision, made by a generative model. */
 export class ClaudeDecider implements Decider {
-  readonly name = "claude-opus-5-5";
+  readonly name = CLAUDE_MODEL;
 
   constructor(private readonly client: Anthropic) {}
 
   async decide(text: string): Promise<Decided> {
     const response = await this.client.messages.parse({
-      model: "claude-opus-5-5",
+      model: CLAUDE_MODEL,
       max_tokens: 1024,
-      output_config: { effort: "low", format: zodOutputFormat(DecisionSchema) },
+      output_config: { format: zodOutputFormat(DecisionSchema) },
       system: DECIDER_SYSTEM,
       messages: [{ role: "user", content: text }],
     });

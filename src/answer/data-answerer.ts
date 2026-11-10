@@ -4,6 +4,8 @@ import { choice, type TypeSafeClient } from "@typesafe-ai/sdk";
 import { z } from "zod";
 import type { EventsRepository } from "../db/events-repository.js";
 import { EventKindSchema } from "../extract/event-schema.js";
+import { describeLocalTime } from "../local-time.js";
+import { CLAUDE_MODEL } from "../models.js";
 import {
   answerLast,
   answerToday,
@@ -19,7 +21,14 @@ export const COMMON_QUESTION_CONFIDENCE = 0.8;
 
 export const DATA_SYSTEM = `You answer a parent's questions about their baby's logged feeds, sleep and diapers.
 Use the tools to read the log; never invent events. Answer in the parent's language, in one or two short sentences.
+"Today" runs from 00:00 local time to now and "yesterday" is the whole local day before: work out those bounds from the current local time you are given, with its UTC offset, and never ask the parent for them.
+If nothing is logged for the question, say so in one sentence.
 You summarize data only: do not give medical advice.`;
+
+/** The user turn for every data agent. */
+export function dataQuestionMessage(question: string, now: Date, timeZone: string): string {
+  return `Current local time: ${describeLocalTime(now, timeZone)}\nQuestion: ${question}`;
+}
 
 /** Answers what no template covers, reading the log through tools. One per model provider. */
 export interface DataAgent {
@@ -101,14 +110,11 @@ export class ClaudeDataAgent implements DataAgent {
   async answer(chatId: number, question: string, now: Date, timeZone: string): Promise<string> {
     const { lastEvent, eventsBetween } = logTools(this.events, chatId);
     const message = await this.client.beta.messages.toolRunner({
-      model: "claude-opus-5-5",
+      model: CLAUDE_MODEL,
       max_tokens: 4096,
-      output_config: { effort: "low" },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       system: DATA_SYSTEM,
       tools: [betaZodTool(lastEvent), betaZodTool(eventsBetween)],
-      messages: [{ role: "user", content: `Current time: ${now.toISOString()} (${timeZone})\nQuestion: ${question}` }],
+      messages: [{ role: "user", content: dataQuestionMessage(question, now, timeZone) }],
     });
 
     return message.content

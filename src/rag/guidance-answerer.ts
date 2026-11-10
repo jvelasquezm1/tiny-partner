@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_MODEL } from "../models.js";
 import type { GuidanceChunk } from "./guidance-repository.js";
 import type { Retriever } from "./retriever.js";
 
@@ -9,7 +10,8 @@ export const NO_SOURCE_MARKER = "NO_SOURCE";
 
 export const GUIDANCE_SYSTEM = `You answer a new parent's general baby care question using only the documents provided.
 Every factual sentence must be supported by the documents. If they do not answer the question, reply with exactly ${NO_SOURCE_MARKER}.
-Answer in the parent's language, in at most four short sentences. Do not diagnose or recommend treatment.`;
+Answer in the language the question is written in, in at most four short sentences, even when the documents are in another language: say what they say in the parent's words.
+Do not diagnose or recommend treatment.`;
 
 /** Writes an answer from the passages and says which passage backs each part. One per model provider. */
 export interface GroundedWriter {
@@ -42,12 +44,9 @@ export class ClaudeWriter implements GroundedWriter {
   constructor(private readonly client: Anthropic) {}
 
   async write(question: string, passages: GuidanceChunk[]): Promise<CitedText[] | null> {
-    const response = await this.client.beta.messages.create({
-      model: "claude-opus-5-5",
+    const response = await this.client.messages.create({
+      model: CLAUDE_MODEL,
       max_tokens: 4096,
-      output_config: { effort: "low" },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       system: GUIDANCE_SYSTEM,
       messages: [
         {

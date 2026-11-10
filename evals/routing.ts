@@ -10,9 +10,7 @@ import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { ClaudeDecider } from "../src/decide/claude-decider.js";
 import type { Decider, Intent } from "../src/decide/decider.js";
 import { MessageDecider } from "../src/decide/message-decider.js";
-
-// Claude Opus 5.5 list price per million tokens. Check https://www.anthropic.com/pricing before publishing numbers.
-const CLAUDE_USD_PER_MTOK = { input: 4, output: 20 };
+import { CLAUDE_USD_PER_MTOK } from "../src/models.js";
 
 interface Case {
   text: string;

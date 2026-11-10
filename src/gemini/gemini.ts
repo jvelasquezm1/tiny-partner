@@ -1,6 +1,6 @@
 import { createPartFromFunctionResponse, createUserContent, type Content, type GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-import { DATA_SYSTEM, logTools, type DataAgent, type LogTool } from "../answer/data-answerer.js";
+import { DATA_SYSTEM, dataQuestionMessage, logTools, type DataAgent, type LogTool } from "../answer/data-answerer.js";
 import { DECIDER_SYSTEM, DecisionSchema } from "../decide/claude-decider.js";
 import type { Turn } from "../conversation.js";
 import type { Decided, Decider } from "../decide/decider.js";
@@ -87,7 +87,7 @@ export class GeminiDataAgent implements DataAgent {
       systemInstruction: DATA_SYSTEM,
       tools: [{ functionDeclarations: tools.map(({ name, description, inputSchema }) => ({ name, description, parametersJsonSchema: jsonSchema(inputSchema) })) }],
     };
-    const contents: Content[] = [createUserContent(`Current time: ${now.toISOString()} (${timeZone})\nQuestion: ${question}`)];
+    const contents: Content[] = [createUserContent(dataQuestionMessage(question, now, timeZone))];
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const response = await this.client.models.generateContent({ model: GEMINI_MODEL, contents, config });

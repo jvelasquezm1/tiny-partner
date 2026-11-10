@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Turn } from "../conversation.js";
+import { CLAUDE_MODEL } from "../models.js";
 
 /** Rewrites a follow-up so it stands alone; every step after it reads only the rewritten message. */
 export interface FollowUpResolver {
@@ -20,13 +21,13 @@ export function followUpPrompt(message: string, turns: Turn[]): string {
   return `Conversation so far:\n${history}\n\nNew message: ${message}`;
 }
 
-// Haiku: it runs before routing on every message that follows another, so it must be cheap and fast.
+// Runs before routing on every message that follows another, so it must be cheap and fast.
 export class ClaudeFollowUpResolver implements FollowUpResolver {
   constructor(private readonly client: Anthropic) {}
 
   async resolve(message: string, turns: Turn[]): Promise<string> {
     const response = await this.client.messages.parse({
-      model: "claude-haiku-4-5",
+      model: CLAUDE_MODEL,
       max_tokens: 512,
       output_config: { format: zodOutputFormat(FollowUpSchema) },
       system: FOLLOW_UP_SYSTEM,
