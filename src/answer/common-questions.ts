@@ -35,7 +35,7 @@ export function answerLast(kind: EventKind, event: StoredEvent | null, now: Date
   const at = clock(event.startedAt, timeZone);
   switch (kind) {
     case "feed":
-      return `Última toma a las ${at} (hace ${ago})${event.amountMl ? `, ${event.amountMl} ml` : ""}${event.side ? `, pecho ${SIDE[event.side]}` : ""}.`;
+      return `Última toma a las ${at} (hace ${ago})${event.amountMl ? `, ${event.amountMl} ml` : ""}${event.side ? `, ${SIDE[event.side]}` : ""}.`;
     case "sleep":
       return event.endedAt
         ? `Último sueño de ${at} a ${clock(event.endedAt, timeZone)} (${duration(Date.parse(event.endedAt) - Date.parse(event.startedAt))}).`
@@ -70,8 +70,9 @@ export function startOfLocalDay(now: Date, timeZone: string): Date {
   return new Date(guess - offset);
 }
 
-const SIDE = { left: "izquierdo", right: "derecho", both: "ambos" } as const;
-const DIAPER = { wet: "pipí", dirty: "caca", both: "pipí y caca" } as const;
+/** The stored values in the parent's words, for every reply that shows them. */
+export const SIDE = { left: "pecho izquierdo", right: "pecho derecho", both: "ambos pechos" } as const;
+export const DIAPER = { wet: "pipí", dirty: "caca", both: "pipí y caca" } as const;
 
 function partsIn(date: Date, timeZone: string) {
   const parts = Object.fromEntries(

@@ -1,6 +1,7 @@
 import { InlineKeyboard, type Bot, type Context } from "grammy";
 import type { EventsRepository } from "./db/events-repository.js";
 import type { MessagesRepository } from "./db/messages-repository.js";
+import { DIAPER, SIDE } from "./answer/common-questions.js";
 import type { DataAnswerer } from "./answer/data-answerer.js";
 import type { Conversations } from "./conversation.js";
 import type { Decider, Intent } from "./decide/decider.js";
@@ -153,11 +154,11 @@ export function describe(event: BabyEvent, timeZone: string, now: Date): string 
   const range = when(event, timeZone, now);
   switch (event.kind) {
     case "feed":
-      return `Toma ${range}${event.amountMl ? `, ${event.amountMl} ml` : ""}${event.side ? ` (${event.side})` : ""}`;
+      return `Toma ${range}${event.amountMl ? `, ${event.amountMl} ml` : ""}${event.side ? ` (${SIDE[event.side]})` : ""}`;
     case "sleep":
       return `Sueño ${range}`;
     case "diaper":
-      return `Pañal ${range}${event.diaper ? ` (${event.diaper})` : ""}`;
+      return `Pañal ${range}${event.diaper ? ` (${DIAPER[event.diaper]})` : ""}`;
   }
 }
 

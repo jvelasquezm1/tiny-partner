@@ -172,6 +172,12 @@ suite("describe", () => {
     expect(describe(sleep, "Europe/Madrid", now)).toBe("Sueño 15:00–17:30");
   });
 
+  it("names the side and the diaper in the parent's words", () => {
+    expect(describe({ ...feed, amountMl: null, side: "left" }, "Europe/Madrid", now)).toBe("Toma 15:00 (pecho izquierdo)");
+    expect(describe({ ...feed, side: "both" }, "Europe/Madrid", now)).toBe("Toma 15:00, 120 ml (ambos pechos)");
+    expect(describe({ ...feed, kind: "diaper", amountMl: null, diaper: "dirty" }, "Europe/Madrid", now)).toBe("Pañal 15:00 (caca)");
+  });
+
   it("names the day whenever it is not today, so a misread time shows", () => {
     const lastNight: BabyEvent = { ...feed, startedAt: "2026-11-09T20:00:00.000Z" };
     expect(describe(lastNight, "Europe/Madrid", now)).toBe("Toma ayer 21:00, 120 ml");
