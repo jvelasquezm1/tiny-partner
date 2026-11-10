@@ -70,6 +70,15 @@ describe("renderWithCitations", () => {
     expect(text).not.toContain("reasoning");
   });
 
+  it("drops citation markup the model wrote as text", () => {
+    const text = renderWithCitations(
+      [{ text: 'Use una superficie firme, como (cite index="1-5">un colchón en una cuna.</cite>', documentIndexes: [2] }],
+      passages,
+    );
+    expect(text.startsWith("Use una superficie firme, como un colchón en una cuna.[1]")).toBe(true);
+    expect(text).not.toContain("cite");
+  });
+
   it("refuses an answer that cites nothing", () => {
     expect(renderWithCitations([{ text: "Probably fine.", documentIndexes: [] }], passages)).toBe(NO_SOURCE_REPLY);
   });

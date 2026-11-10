@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { CLAUDE_MODEL } from "../models.js";
+import { CLAUDE_EFFORT, CLAUDE_MODEL } from "../models.js";
 import type { GuidanceChunk } from "./guidance-repository.js";
 import type { Retriever } from "./retriever.js";
 
@@ -47,6 +47,7 @@ export class ClaudeWriter implements GroundedWriter {
     const response = await this.client.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 4096,
+      output_config: { effort: CLAUDE_EFFORT },
       system: GUIDANCE_SYSTEM,
       messages: [
         {
@@ -97,6 +98,8 @@ export function renderWithCitations(blocks: CitedText[], passages: GuidanceChunk
     .join("")
     // The model now and then writes its plan as text ("<reasoning>Answer in Spanish…</reasoning>"): never the parent's to read.
     .replace(/<(reasoning|thinking)>[\s\S]*?<\/\1>/g, "")
+    // Haiku 5.5 sometimes writes citation markup into the text ('(cite index="1-5">…</cite>'): the markers above already cite.
+    .replace(/\(?<?\/?cite\b[^>]*>/g, "")
     .trim();
 
   if (sourceNumbers.size === 0 || body.includes(NO_SOURCE_MARKER)) return NO_SOURCE_REPLY;

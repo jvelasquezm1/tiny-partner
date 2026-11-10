@@ -82,7 +82,7 @@ export class GeminiDataAgent implements DataAgent {
   ) {}
 
   async answer(chatId: number, question: string, now: Date, timeZone: string): Promise<string> {
-    const tools: LogTool[] = Object.values(logTools(this.events, chatId));
+    const tools: LogTool[] = Object.values(logTools(this.events, chatId, timeZone));
     const config = {
       systemInstruction: DATA_SYSTEM,
       tools: [{ functionDeclarations: tools.map(({ name, description, inputSchema }) => ({ name, description, parametersJsonSchema: jsonSchema(inputSchema) })) }],

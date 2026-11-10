@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Turn } from "../conversation.js";
-import { CLAUDE_MODEL } from "../models.js";
+import { CLAUDE_EFFORT, CLAUDE_MODEL } from "../models.js";
 
 /** Rewrites a follow-up so it stands alone; every step after it reads only the rewritten message. */
 export interface FollowUpResolver {
@@ -28,8 +28,8 @@ export class ClaudeFollowUpResolver implements FollowUpResolver {
   async resolve(message: string, turns: Turn[]): Promise<string> {
     const response = await this.client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 512,
-      output_config: { format: zodOutputFormat(FollowUpSchema) },
+      max_tokens: 4096,
+      output_config: { effort: CLAUDE_EFFORT, format: zodOutputFormat(FollowUpSchema) },
       system: FOLLOW_UP_SYSTEM,
       messages: [{ role: "user", content: followUpPrompt(message, turns) }],
     });

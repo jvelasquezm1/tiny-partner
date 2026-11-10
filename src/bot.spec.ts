@@ -6,12 +6,15 @@ import {
   EXPIRED_CHOICE_REPLY,
   handleText,
   handleTimeChoice,
+  NO_DATA_ANSWER_REPLY,
+  UNREADABLE_EVENT_REPLY,
   UNAVAILABLE_REPLY,
   URGENT_REPLY,
   type BotDeps,
 } from "./bot.js";
 import { Conversations } from "./conversation.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
+import { ExtractionError } from "./extract/extract-event.js";
 import type { Decision } from "./decide/decider.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 import { PendingEvents } from "./pending-events.js";
@@ -104,6 +107,20 @@ suite("handleText", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(await handleText(ctx, "no respira bien", deps)).toBe("unavailable");
     expect(reply).toHaveBeenCalledWith(UNAVAILABLE_REPLY);
+  });
+
+  it("answers instead of staying silent when the model declines a step", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const log = setup({ type: "route", intent: "log_event", confidence: 0.95 });
+    vi.mocked(log.deps.extractor.extract).mockRejectedValue(new ExtractionError("tomó 120 ml", "refusal"));
+    await handleText(log.ctx, "tomó 120 ml", log.deps, now);
+    expect(log.reply).toHaveBeenCalledWith(UNREADABLE_EVENT_REPLY);
+    expect(log.deps.events.insert).not.toHaveBeenCalled();
+
+    const data = setup({ type: "route", intent: "ask_about_data", confidence: 0.9 });
+    vi.mocked(data.deps.dataAnswerer.answer).mockResolvedValue("");
+    await handleText(data.ctx, "¿cuándo comió?", data.deps, now);
+    expect(data.reply).toHaveBeenCalledWith(NO_DATA_ANSWER_REPLY);
   });
 
   it("routes data questions to the data answerer", async () => {

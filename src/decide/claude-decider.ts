@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { CLAUDE_MODEL } from "../models.js";
+import { CLAUDE_EFFORT, CLAUDE_MODEL } from "../models.js";
 import { INTENT_DESCRIPTIONS, INTENTS, URGENT_DESCRIPTION, type Decided, type Decider, type Intent } from "./decider.js";
 
 export const DecisionSchema = z.object({
@@ -22,8 +22,8 @@ export class ClaudeDecider implements Decider {
   async decide(text: string): Promise<Decided> {
     const response = await this.client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
-      output_config: { format: zodOutputFormat(DecisionSchema) },
+      max_tokens: 4096,
+      output_config: { effort: CLAUDE_EFFORT, format: zodOutputFormat(DecisionSchema) },
       system: DECIDER_SYSTEM,
       messages: [{ role: "user", content: text }],
     });

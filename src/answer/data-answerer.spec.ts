@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { TypeSafeClient } from "@typesafe-ai/sdk";
 import { describe, expect, it, vi } from "vitest";
 import type { EventsRepository } from "../db/events-repository.js";
-import { ClaudeDataAgent, DataAnswerer } from "./data-answerer.js";
+import { ClaudeDataAgent, DataAnswerer, logTools } from "./data-answerer.js";
 
 const agent = { answer: vi.fn().mockResolvedValue("Hace 2 horas.") };
 
@@ -33,5 +33,16 @@ describe("ClaudeDataAgent", () => {
 
     expect(answer).toBe("Hace 2 horas.");
     expect(toolRunner).toHaveBeenCalledOnce();
+  });
+});
+
+describe("logTools", () => {
+  it("returns event times in the parent's clock, never UTC", async () => {
+    const stored = { id: 1, kind: "feed", startedAt: "2026-11-10T07:15:00.000Z", endedAt: null, amountMl: null, side: "left", diaper: null, note: null };
+    const events = { last: vi.fn().mockResolvedValue(stored), between: vi.fn().mockResolvedValue([stored]) } as unknown as EventsRepository;
+    const { lastEvent, eventsBetween } = logTools(events, 7, "Europe/Madrid");
+    expect(JSON.parse(await lastEvent.run({ kind: "feed" })).startedAt).toBe("2026-11-10T08:15:00+01:00");
+    const [event] = JSON.parse(await eventsBetween.run({ from: "2026-11-10T00:00:00+01:00", to: "2026-11-10T09:00:00+01:00" }));
+    expect(event.startedAt).toBe("2026-11-10T08:15:00+01:00");
   });
 });

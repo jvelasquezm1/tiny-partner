@@ -2,10 +2,10 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { choice, type TypeSafeClient } from "@typesafe-ai/sdk";
 import { z } from "zod";
-import type { EventsRepository } from "../db/events-repository.js";
+import type { EventsRepository, StoredEvent } from "../db/events-repository.js";
 import { EventKindSchema } from "../extract/event-schema.js";
-import { describeLocalTime } from "../local-time.js";
-import { CLAUDE_MODEL } from "../models.js";
+import { describeLocalTime, toLocalIso } from "../local-time.js";
+import { CLAUDE_EFFORT, CLAUDE_MODEL } from "../models.js";
 import {
   answerLast,
   answerToday,
@@ -44,20 +44,29 @@ export interface LogTool<S extends z.ZodObject = z.ZodObject> {
 
 const defineTool = <S extends z.ZodObject>(tool: LogTool<S>) => tool;
 
-/** The log as tools, shared by every provider so they all see the same data the same way. */
-export function logTools(events: EventsRepository, chatId: number) {
+/**
+ * The log as tools, shared by every provider so they all see the same data the same way. Times come
+ * back in the parent's clock, like the current time in the question.
+ */
+export function logTools(events: EventsRepository, chatId: number, timeZone: string) {
+  const local = (event: StoredEvent | null) =>
+    event && {
+      ...event,
+      startedAt: toLocalIso(new Date(event.startedAt), timeZone),
+      endedAt: event.endedAt && toLocalIso(new Date(event.endedAt), timeZone),
+    };
   return {
     lastEvent: defineTool({
       name: "last_event",
       description: "The most recent logged event of a kind.",
       inputSchema: z.object({ kind: EventKindSchema }),
-      run: async ({ kind }) => JSON.stringify(await events.last(chatId, kind)),
+      run: async ({ kind }) => JSON.stringify(local(await events.last(chatId, kind))),
     }),
     eventsBetween: defineTool({
       name: "events_between",
       description: "Logged events in a time range [from, to), optionally of one kind. Timestamps are ISO 8601.",
       inputSchema: z.object({ from: z.string(), to: z.string(), kind: EventKindSchema.optional() }),
-      run: async ({ from, to, kind }) => JSON.stringify(await events.between(chatId, from, to, kind)),
+      run: async ({ from, to, kind }) => JSON.stringify((await events.between(chatId, from, to, kind)).map(local)),
     }),
   };
 }
@@ -108,10 +117,11 @@ export class ClaudeDataAgent implements DataAgent {
   ) {}
 
   async answer(chatId: number, question: string, now: Date, timeZone: string): Promise<string> {
-    const { lastEvent, eventsBetween } = logTools(this.events, chatId);
+    const { lastEvent, eventsBetween } = logTools(this.events, chatId, timeZone);
     const message = await this.client.beta.messages.toolRunner({
       model: CLAUDE_MODEL,
       max_tokens: 4096,
+      output_config: { effort: CLAUDE_EFFORT },
       system: DATA_SYSTEM,
       tools: [betaZodTool(lastEvent), betaZodTool(eventsBetween)],
       messages: [{ role: "user", content: dataQuestionMessage(question, now, timeZone) }],

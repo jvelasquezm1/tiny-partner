@@ -6,7 +6,7 @@ import type { Conversations } from "./conversation.js";
 import type { Decider, Intent } from "./decide/decider.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { FollowUpResolver } from "./decide/follow-up.js";
-import type { EventExtractor } from "./extract/extract-event.js";
+import { ExtractionError, type EventExtractor } from "./extract/extract-event.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 import { statesUnclearClockTime, timeReadings } from "./extract/event-time.js";
 import type { PendingEvents } from "./pending-events.js";
@@ -19,6 +19,9 @@ export const UNAVAILABLE_REPLY =
   "⚠️ Ahora mismo no puedo procesar mensajes. Si es urgente, llama al 112 o a tu pediatra.";
 const OTHER_REPLY =
   "Puedo apuntar tomas, sueño y pañales (\"tomó 120 ml\") y responder sobre lo apuntado (\"¿cuándo comió?\").";
+// Haiku 5.5 runs safety classifiers with no fallback model: a declined step gets a reply, never silence.
+export const UNREADABLE_EVENT_REPLY = "No he podido apuntarlo. Escríbelo de otra forma, por ejemplo: «tomó 120 ml a las 15h».";
+export const NO_DATA_ANSWER_REPLY = "No he podido responder eso ahora. Prueba a preguntarlo de otra forma.";
 export const CANCELLED_REPLY = "❌ No he apuntado nada.";
 export const EXPIRED_CHOICE_REPLY = "Esta pregunta ya no está activa: vuelve a escribirlo.";
 
@@ -86,7 +89,16 @@ export async function handleText(ctx: Context, message: string, deps: BotDeps, n
 
   switch (decision.intent) {
     case "log_event": {
-      const { ambiguousTime, ...event } = await deps.extractor.extract(text, now, deps.timeZone);
+      let extracted;
+      try {
+        extracted = await deps.extractor.extract(text, now, deps.timeZone);
+      } catch (error) {
+        if (!(error instanceof ExtractionError)) throw error;
+        console.warn("could not extract an event", error.stopReason);
+        await reply(UNREADABLE_EVENT_REPLY);
+        return decision.intent;
+      }
+      const { ambiguousTime, ...event } = extracted;
       // A time that is not clear is asked, never guessed: nothing is saved until the parent picks one.
       const readings = timeReadings(event, ambiguousTime || statesUnclearClockTime(text), now);
       if (readings) {
@@ -101,7 +113,8 @@ export async function handleText(ctx: Context, message: string, deps: BotDeps, n
       return decision.intent;
     }
     case "ask_about_data":
-      await reply(await deps.dataAnswerer.answer(chatId, text, now, deps.timeZone));
+      // A declined or empty answer would be an empty Telegram message, which Telegram rejects.
+      await reply((await deps.dataAnswerer.answer(chatId, text, now, deps.timeZone)) || NO_DATA_ANSWER_REPLY);
       return decision.intent;
     case "ask_guidance": {
       const answer = await deps.guidanceAnswerer.answer(text);

@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { describeLocalTime } from "../local-time.js";
-import { CLAUDE_MODEL } from "../models.js";
+import { CLAUDE_EFFORT, CLAUDE_MODEL } from "../models.js";
 import { ExtractedEventSchema, type ExtractedEvent } from "./event-schema.js";
 
 // No worked example with concrete hours: Haiku copied one ("21:00 the day before") into unrelated messages.
@@ -23,8 +23,8 @@ export class EventExtractor {
   async extract(text: string, now: Date, timeZone: string): Promise<ExtractedEvent> {
     const response = await this.client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
-      output_config: { format: zodOutputFormat(ExtractedEventSchema) },
+      max_tokens: 4096,
+      output_config: { effort: CLAUDE_EFFORT, format: zodOutputFormat(ExtractedEventSchema) },
       system: EXTRACTION_SYSTEM,
       messages: [{ role: "user", content: extractionMessage(text, now, timeZone) }],
     });
