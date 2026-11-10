@@ -3,8 +3,8 @@ import { z } from "zod";
 import { DATA_SYSTEM, logTools, type DataAgent, type LogTool } from "../answer/data-answerer.js";
 import { DECIDER_SYSTEM, DecisionSchema } from "../decide/claude-decider.js";
 import type { Decided, Decider } from "../decide/decider.js";
-import { BabyEventSchema, type BabyEvent } from "../extract/event-schema.js";
-import { EXTRACTION_SYSTEM, ExtractionError } from "../extract/extract-event.js";
+import { ExtractedEventSchema, type ExtractedEvent } from "../extract/event-schema.js";
+import { EXTRACTION_SYSTEM, ExtractionError, extractionMessage } from "../extract/extract-event.js";
 import { GUIDANCE_SYSTEM, type CitedText, type GroundedWriter } from "../rag/guidance-answerer.js";
 import type { GuidanceChunk } from "../rag/guidance-repository.js";
 import type { EventsRepository } from "../db/events-repository.js";
@@ -56,9 +56,9 @@ export class GeminiDecider implements Decider {
 export class GeminiExtractor {
   constructor(private readonly client: GoogleGenAI) {}
 
-  async extract(text: string, now: Date, timeZone: string): Promise<BabyEvent> {
-    const user = `Current time: ${now.toISOString()} (${timeZone})\nMessage: ${text}`;
-    const { output, finishReason } = await generateObject(this.client, BabyEventSchema, EXTRACTION_SYSTEM, user);
+  async extract(text: string, now: Date, timeZone: string): Promise<ExtractedEvent> {
+    const user = extractionMessage(text, now, timeZone);
+    const { output, finishReason } = await generateObject(this.client, ExtractedEventSchema, EXTRACTION_SYSTEM, user);
     if (!output) throw new ExtractionError(text, finishReason);
     return output;
   }

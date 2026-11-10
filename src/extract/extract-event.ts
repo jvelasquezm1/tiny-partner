@@ -1,25 +1,41 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { BabyEventSchema, type BabyEvent } from "./event-schema.js";
+import { ExtractedEventSchema, type ExtractedEvent } from "./event-schema.js";
 
 // Haiku: extraction runs on every logged event, so it is the cheapest model that passes eval:extraction.
 export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
+// No worked example with concrete hours: Haiku copied one ("21:00 the day before") into unrelated messages.
 export const EXTRACTION_SYSTEM = `You turn a parent's short message about their baby into one structured event.
-Resolve relative times ("at 3", "an hour ago", "just now") against the current time you are given, in the parent's time zone.
-A time without am/pm means the most recent past occurrence of that time.
+The event already happened, so it never starts after the current local time you are given.
+Resolve relative times ("an hour ago", "just now") against that time; no time at all means now. Write timestamps in that local time, with its UTC offset.
+A clock time without am/pm means its most recent past occurrence.
+Set ambiguousTime from the words alone: true when they leave open whether a clock time is morning or evening, even if one reading seems likelier.
 Leave a field null when the message does not state it. Never guess amounts.`;
+
+/**
+ * The user turn for every extractor. The current time is given in the parent's own clock: a model
+ * left to convert UTC itself placed "a las 9" sent at 07:30 at 09:00 the same day, in the future.
+ */
+export function extractionMessage(text: string, now: Date, timeZone: string): string {
+  const part = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-CA", { timeZone, ...options }).format(now);
+  const offset = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
+    .formatToParts(now)
+    .find(({ type }) => type === "timeZoneName")?.value;
+  const local = `${part({ weekday: "long" })} ${part({})} ${part({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`;
+  return `Current local time: ${local} (${timeZone}, ${offset})\nMessage: ${text}`;
+}
 
 export class EventExtractor {
   constructor(private readonly client: Anthropic) {}
 
-  async extract(text: string, now: Date, timeZone: string): Promise<BabyEvent> {
+  async extract(text: string, now: Date, timeZone: string): Promise<ExtractedEvent> {
     const response = await this.client.messages.parse({
       model: EXTRACTION_MODEL,
       max_tokens: 1024,
-      output_config: { format: zodOutputFormat(BabyEventSchema) },
+      output_config: { format: zodOutputFormat(ExtractedEventSchema) },
       system: EXTRACTION_SYSTEM,
-      messages: [{ role: "user", content: `Current time: ${now.toISOString()} (${timeZone})\nMessage: ${text}` }],
+      messages: [{ role: "user", content: extractionMessage(text, now, timeZone) }],
     });
     if (response.stop_reason === "refusal" || !response.parsed_output) {
       throw new ExtractionError(text, response.stop_reason);

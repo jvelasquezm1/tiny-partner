@@ -17,6 +17,7 @@ import { loadEnv } from "./env.js";
 import { EventExtractor } from "./extract/extract-event.js";
 import { GeminiDataAgent, GeminiDecider, GeminiExtractor, GeminiWriter } from "./gemini/gemini.js";
 import { offlineDeps } from "./offline.js";
+import { PendingEvents } from "./pending-events.js";
 import { Embedder } from "./rag/embedder.js";
 import { ClaudeWriter, GuidanceAnswerer, type GroundedWriter } from "./rag/guidance-answerer.js";
 import { GuidanceRepository } from "./rag/guidance-repository.js";
@@ -91,6 +92,7 @@ registerHandlers(bot, {
   ...selectDeps(),
   events,
   messages: new MessagesRepository(pool),
+  pending: new PendingEvents(),
   allowedUserIds: env.ALLOWED_TELEGRAM_USER_IDS,
   timeZone: env.TZ,
 });

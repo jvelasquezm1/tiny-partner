@@ -1,4 +1,4 @@
-import type { Bot, Context } from "grammy";
+import { InlineKeyboard, type Bot, type Context } from "grammy";
 import type { EventsRepository } from "./db/events-repository.js";
 import type { MessagesRepository } from "./db/messages-repository.js";
 import type { DataAnswerer } from "./answer/data-answerer.js";
@@ -6,6 +6,8 @@ import type { Decider, Intent } from "./decide/decider.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { EventExtractor } from "./extract/extract-event.js";
 import type { BabyEvent } from "./extract/event-schema.js";
+import { statesUnclearClockTime, timeReadings } from "./extract/event-time.js";
+import type { PendingEvents } from "./pending-events.js";
 import { NO_SOURCE_REPLY, type GuidanceAnswerer } from "./rag/guidance-answerer.js";
 
 export const URGENT_REPLY =
@@ -15,12 +17,16 @@ export const UNAVAILABLE_REPLY =
   "⚠️ Ahora mismo no puedo procesar mensajes. Si es urgente, llama al 112 o a tu pediatra.";
 const OTHER_REPLY =
   "Puedo apuntar tomas, sueño y pañales (\"tomó 120 ml\") y responder sobre lo apuntado (\"¿cuándo comió?\").";
+export const CANCELLED_REPLY = "❌ No he apuntado nada.";
+export const EXPIRED_CHOICE_REPLY = "Esta pregunta ya no está activa: vuelve a escribirlo.";
 
 export interface BotDeps {
   decider: Decider;
   extractor: Pick<EventExtractor, "extract">;
   events: EventsRepository;
   messages: Pick<MessagesRepository, "record">;
+  /** Events whose time the parent still has to pick (see timeReadings). */
+  pending: Pick<PendingEvents, "add" | "take">;
   dataAnswerer: Pick<DataAnswerer, "answer">;
   guidanceAnswerer: Pick<GuidanceAnswerer, "answer">;
   allowedUserIds: Set<number>;
@@ -43,14 +49,14 @@ export function registerHandlers(bot: Bot, deps: BotDeps): void {
       .record({ chatId: ctx.chat.id, outcome, decider: deps.decider.name, durationMs })
       .catch((error) => console.error("could not record message stats", error));
   });
+  bot.callbackQuery(/^when:([\w-]+):(\d+|cancel)$/, (ctx) => handleTimeChoice(ctx, ctx.match[1]!, ctx.match[2]!, deps));
 }
 
 /** What the bot did with a message, for the log line and the admin page's stats. */
 export type Outcome = Intent | "no_source" | "urgent" | "unavailable";
 
-export async function handleText(ctx: Context, text: string, deps: BotDeps): Promise<Outcome> {
+export async function handleText(ctx: Context, text: string, deps: BotDeps, now = new Date()): Promise<Outcome> {
   const chatId = ctx.chat!.id;
-  const now = new Date();
   let decision;
   try {
     ({ decision } = await deps.decider.decide(text));
@@ -68,9 +74,18 @@ export async function handleText(ctx: Context, text: string, deps: BotDeps): Pro
 
   switch (decision.intent) {
     case "log_event": {
-      const event = await deps.extractor.extract(text, now, deps.timeZone);
+      const { ambiguousTime, ...event } = await deps.extractor.extract(text, now, deps.timeZone);
+      // A time that is not clear is asked, never guessed: nothing is saved until the parent picks one.
+      const readings = timeReadings(event, ambiguousTime || statesUnclearClockTime(text), now);
+      if (readings) {
+        const id = deps.pending.add(chatId, text, readings);
+        const keyboard = new InlineKeyboard();
+        readings.forEach((reading, i) => keyboard.text(capitalize(when(reading, deps.timeZone, now, "hoy ")), `when:${id}:${i}`));
+        await ctx.reply(`⏰ ¿Cuándo fue ${subject(event)}?`, { reply_markup: keyboard.row().text("Cancelar", `when:${id}:cancel`) });
+        return decision.intent;
+      }
       await deps.events.insert(chatId, event, text);
-      await ctx.reply(`✅ ${describe(event, deps.timeZone)}`);
+      await ctx.reply(`✅ ${describe(event, deps.timeZone, now)}`);
       return decision.intent;
     }
     case "ask_about_data":
@@ -87,10 +102,18 @@ export async function handleText(ctx: Context, text: string, deps: BotDeps): Pro
   }
 }
 
-export function describe(event: BabyEvent, timeZone: string): string {
-  const time = (iso: string) =>
-    new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone });
-  const range = event.endedAt ? `${time(event.startedAt)}–${time(event.endedAt)}` : time(event.startedAt);
+/** The parent tapped one of the offered times, or Cancelar: the event is saved then, never before. */
+export async function handleTimeChoice(ctx: Context, id: string, choice: string, deps: BotDeps, now = new Date()): Promise<void> {
+  const entry = deps.pending.take(id, ctx.chat!.id);
+  const event = choice === "cancel" ? undefined : entry?.readings[Number(choice)];
+  if (entry && event) await deps.events.insert(ctx.chat!.id, event, entry.sourceText);
+  await ctx.answerCallbackQuery();
+  // Editing the question also removes its buttons.
+  await ctx.editMessageText(!entry ? EXPIRED_CHOICE_REPLY : event ? `✅ ${describe(event, deps.timeZone, now)}` : CANCELLED_REPLY);
+}
+
+export function describe(event: BabyEvent, timeZone: string, now: Date): string {
+  const range = when(event, timeZone, now);
   switch (event.kind) {
     case "feed":
       return `Toma ${range}${event.amountMl ? `, ${event.amountMl} ml` : ""}${event.side ? ` (${event.side})` : ""}`;
@@ -100,3 +123,27 @@ export function describe(event: BabyEvent, timeZone: string): string {
       return `Pañal ${range}${event.diaper ? ` (${event.diaper})` : ""}`;
   }
 }
+
+/** The event's time, with its day whenever it is not today: "21:00", "ayer 21:00", "lun, 3 nov 21:00". */
+function when(event: BabyEvent, timeZone: string, now: Date, today = ""): string {
+  const time = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone });
+  const range = event.endedAt ? `${time(event.startedAt)}–${time(event.endedAt)}` : time(event.startedAt);
+  const localDay = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
+  const start = new Date(event.startedAt);
+  if (localDay(start) === localDay(now)) return `${today}${range}`;
+  if (localDay(start) === localDay(new Date(now.getTime() - 86_400_000))) return `ayer ${range}`;
+  return `${start.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone })} ${range}`;
+}
+
+function subject(event: BabyEvent): string {
+  switch (event.kind) {
+    case "feed":
+      return `la toma${event.amountMl ? ` de ${event.amountMl} ml` : ""}`;
+    case "sleep":
+      return "el sueño";
+    case "diaper":
+      return "el pañal";
+  }
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

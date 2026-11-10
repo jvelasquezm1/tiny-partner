@@ -2,7 +2,7 @@ import { answerLast, answerToday, startOfLocalDay } from "./answer/common-questi
 import type { BotDeps } from "./bot.js";
 import type { EventsRepository } from "./db/events-repository.js";
 import type { Decided, Decider, Decision } from "./decide/decider.js";
-import type { BabyEvent, EventKind } from "./extract/event-schema.js";
+import type { EventKind, ExtractedEvent } from "./extract/event-schema.js";
 
 /**
  * OFFLINE_MODE: keyword rules stand in for every model call, so the whole bot (Telegram, allowlist,
@@ -47,7 +47,7 @@ export class KeywordDecider implements Decider {
   }
 }
 
-export function extractByKeywords(text: string, now: Date): BabyEvent {
+export function extractByKeywords(text: string, now: Date): ExtractedEvent {
   const kind = kindOf(text);
   const ml = text.match(/(\d+)\s*ml/i);
   return {
@@ -58,6 +58,8 @@ export function extractByKeywords(text: string, now: Date): BabyEvent {
     side: null,
     diaper: kind === "diaper" ? (/caca/i.test(text) ? "dirty" : "wet") : null,
     note: "🧪 offline",
+    // Always "now": there is no clock time to misread.
+    ambiguousTime: false,
   };
 }
 

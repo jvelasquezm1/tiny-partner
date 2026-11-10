@@ -1,9 +1,19 @@
 import type { Context } from "grammy";
 import { describe as suite, expect, it, vi } from "vitest";
-import { describe, handleText, UNAVAILABLE_REPLY, URGENT_REPLY, type BotDeps } from "./bot.js";
+import {
+  CANCELLED_REPLY,
+  describe,
+  EXPIRED_CHOICE_REPLY,
+  handleText,
+  handleTimeChoice,
+  UNAVAILABLE_REPLY,
+  URGENT_REPLY,
+  type BotDeps,
+} from "./bot.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { Decision } from "./decide/decider.js";
 import type { BabyEvent } from "./extract/event-schema.js";
+import { PendingEvents } from "./pending-events.js";
 import { NO_SOURCE_REPLY } from "./rag/guidance-answerer.js";
 
 const feed: BabyEvent = {
@@ -15,16 +25,19 @@ const feed: BabyEvent = {
   diaper: null,
   note: null,
 };
+// 17:00 in Madrid, the same day as the feed (15:00 there).
+const now = new Date("2026-11-10T16:00:00.000Z");
 
 function setup(decision: Decision) {
   const reply = vi.fn();
-  const ctx = { chat: { id: 7 }, reply } as unknown as Context;
+  const ctx = { chat: { id: 7 }, reply, answerCallbackQuery: vi.fn(), editMessageText: vi.fn() } as unknown as Context;
   const deps = {
     decider: { name: "fake", decide: vi.fn().mockResolvedValue({ decision, usage: { inputTokens: 0, outputTokens: 0 } }) },
-    extractor: { extract: vi.fn().mockResolvedValue(feed) },
+    extractor: { extract: vi.fn().mockResolvedValue({ ...feed, ambiguousTime: false }) },
     events: { insert: vi.fn().mockResolvedValue(1) },
     dataAnswerer: { answer: vi.fn().mockResolvedValue("Hace 2 horas.") },
     guidanceAnswerer: { answer: vi.fn() },
+    pending: new PendingEvents(),
     allowedUserIds: new Set([1]),
     timeZone: "Europe/Madrid",
   } as unknown as BotDeps;
@@ -42,9 +55,44 @@ suite("handleText", () => {
 
   it("extracts and stores a logged event", async () => {
     const { ctx, deps, reply } = setup({ type: "route", intent: "log_event", confidence: 0.95 });
-    await handleText(ctx, "tomó 120 ml a las 4", deps);
-    expect(deps.events.insert).toHaveBeenCalledWith(7, feed, "tomó 120 ml a las 4");
+    await handleText(ctx, "tomó 120 ml a las 15h", deps, now);
+    expect(deps.events.insert).toHaveBeenCalledWith(7, feed, "tomó 120 ml a las 15h");
     expect(reply).toHaveBeenCalledWith("✅ Toma 15:00, 120 ml");
+  });
+
+  it("asks morning or evening instead of guessing, and saves only the reading the parent picks", async () => {
+    const { ctx, deps, reply } = setup({ type: "route", intent: "log_event", confidence: 0.95 });
+    vi.mocked(deps.extractor.extract).mockResolvedValue({ ...feed, ambiguousTime: true });
+    await handleText(ctx, "tomó 120 ml a las 3", deps, now);
+    expect(deps.events.insert).not.toHaveBeenCalled();
+
+    const [question, { reply_markup }] = reply.mock.calls[0]!;
+    expect(question).toBe("⏰ ¿Cuándo fue la toma de 120 ml?");
+    const buttons = reply_markup.inline_keyboard.flat();
+    expect(buttons.map((button: { text: string }) => button.text)).toEqual(["Hoy 15:00", "Hoy 03:00", "Cancelar"]);
+
+    const [, id] = buttons[1].callback_data.split(":");
+    await handleTimeChoice(ctx, id, "1", deps, now);
+    expect(deps.events.insert).toHaveBeenCalledWith(7, { ...feed, startedAt: "2026-11-10T02:00:00.000Z" }, "tomó 120 ml a las 3");
+    expect(ctx.editMessageText).toHaveBeenLastCalledWith("✅ Toma 03:00, 120 ml");
+
+    // A second tap on the same question saves nothing more.
+    await handleTimeChoice(ctx, id, "0", deps, now);
+    expect(deps.events.insert).toHaveBeenCalledOnce();
+    expect(ctx.editMessageText).toHaveBeenLastCalledWith(EXPIRED_CHOICE_REPLY);
+  });
+
+  it("asks when the time has not come yet, and saves nothing when the parent cancels", async () => {
+    const { ctx, deps, reply } = setup({ type: "route", intent: "log_event", confidence: 0.95 });
+    const early = new Date("2026-11-10T06:30:00.000Z"); // 07:30 in Madrid
+    vi.mocked(deps.extractor.extract).mockResolvedValue({ ...feed, startedAt: "2026-11-10T08:00:00.000Z", ambiguousTime: false });
+    await handleText(ctx, "tomó 120 ml a las 9 de la mañana", deps, early);
+
+    const buttons = reply.mock.calls[0]![1].reply_markup.inline_keyboard.flat();
+    expect(buttons.map((button: { text: string }) => button.text)).toEqual(["Ayer 09:00", "Dom, 8 nov 09:00", "Cancelar"]);
+    await handleTimeChoice(ctx, buttons[2].callback_data.split(":")[1], "cancel", deps, early);
+    expect(deps.events.insert).not.toHaveBeenCalled();
+    expect(ctx.editMessageText).toHaveBeenCalledWith(CANCELLED_REPLY);
   });
 
   it("tells the parent to call emergency services when no decider is available", async () => {
@@ -72,6 +120,12 @@ suite("handleText", () => {
 suite("describe", () => {
   it("formats a sleep range in the household time zone", () => {
     const sleep: BabyEvent = { ...feed, kind: "sleep", amountMl: null, endedAt: "2026-11-10T16:30:00.000Z" };
-    expect(describe(sleep, "Europe/Madrid")).toBe("Sueño 15:00–17:30");
+    expect(describe(sleep, "Europe/Madrid", now)).toBe("Sueño 15:00–17:30");
+  });
+
+  it("names the day whenever it is not today, so a misread time shows", () => {
+    const lastNight: BabyEvent = { ...feed, startedAt: "2026-11-09T20:00:00.000Z" };
+    expect(describe(lastNight, "Europe/Madrid", now)).toBe("Toma ayer 21:00, 120 ml");
+    expect(describe({ ...feed, startedAt: "2026-11-03T08:00:00.000Z" }, "Europe/Madrid", now)).toBe("Toma mar, 3 nov 09:00, 120 ml");
   });
 });

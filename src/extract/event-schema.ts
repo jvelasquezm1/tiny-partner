@@ -13,3 +13,13 @@ export const BabyEventSchema = z.object({
   note: z.string().nullable(),
 });
 export type BabyEvent = z.infer<typeof BabyEventSchema>;
+
+/** What the extractor returns: the event, plus whether its clock time could be morning or evening. */
+export const ExtractedEventSchema = BabyEventSchema.extend({
+  ambiguousTime: z
+    .boolean()
+    .describe(
+      'True when the message gives a clock time without saying whether it is morning or evening ("a las 9", "at 3", "de 2 a 4"). False for 24-hour times (21h, 15:30), am/pm, de la mañana/tarde/noche, relative times and no time at all',
+    ),
+});
+export type ExtractedEvent = z.infer<typeof ExtractedEventSchema>;
