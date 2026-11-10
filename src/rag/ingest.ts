@@ -1,6 +1,6 @@
 /**
  * Syncs the guidance index with guidance/*.md (see sync-guidance.ts). Runs on every deploy, before
- * the bot starts.
+ * the bot starts; the admin page runs the same sync on demand.
  */
 import pg from "pg";
 import { loadDatabaseUrl } from "../env.js";

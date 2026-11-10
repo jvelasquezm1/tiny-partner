@@ -60,6 +60,8 @@ pnpm dev
 | `pnpm eval:routing` | Router benchmark: Jev vs Claude (costs tokens) |
 | `pnpm eval:rag` | Retrieval recall (free); no-source behavior and faithfulness with keys (costs tokens) |
 
+**Admin page.** The bot also serves `http://localhost:4100/admin`, on localhost only and without a login for now. It lists the indexed guides and re-runs the same sync as `pnpm ingest`.
+
 ## Evals
 
 **Router benchmark** (`evals/routing.jsonl`, 32 labeled messages in Spanish and English). The metric that matters most is urgent recall: a missed urgency is the expensive error.

@@ -18,6 +18,11 @@ describe("loadEnv", () => {
     expect(loadEnv({ ...required, TYPESAFE_API_KEY: "ts-test" }).TYPESAFE_API_KEY).toBe("ts-test");
   });
 
+  it("defaults the admin page's port", () => {
+    expect(loadEnv(required).ADMIN_PORT).toBe(4100);
+    expect(loadEnv({ ...required, ADMIN_PORT: "4200" }).ADMIN_PORT).toBe(4200);
+  });
+
   it("requires an Anthropic or Gemini key unless OFFLINE_MODE is on", () => {
     const { ANTHROPIC_API_KEY: _, ...withoutKey } = required;
     expect(() => loadEnv(withoutKey)).toThrow(/ANTHROPIC_API_KEY or GEMINI_API_KEY is required/);

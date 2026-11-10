@@ -18,6 +18,8 @@ const EnvSchema = z.object({
     .string()
     .optional()
     .transform((key) => key || undefined),
+  // The admin page's port, on localhost (see admin/admin-server.ts).
+  ADMIN_PORT: z.coerce.number().int().default(4100),
   DATABASE_URL: z.url(),
   ALLOWED_TELEGRAM_USER_IDS: z
     .string()

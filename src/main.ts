@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { Bot } from "grammy";
 import pg from "pg";
+import { createAdminServer } from "./admin/admin-server.js";
 import { ClaudeDataAgent, DataAnswerer, type DataAgent } from "./answer/data-answerer.js";
 import { registerHandlers } from "./bot.js";
 import { EventsRepository } from "./db/events-repository.js";
@@ -18,10 +19,14 @@ import { Embedder } from "./rag/embedder.js";
 import { ClaudeWriter, GuidanceAnswerer, type GroundedWriter } from "./rag/guidance-answerer.js";
 import { GuidanceRepository } from "./rag/guidance-repository.js";
 import { Retriever } from "./rag/retriever.js";
+import { syncGuidance } from "./rag/sync-guidance.js";
 
 const env = loadEnv();
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 const events = new EventsRepository(pool);
+// Shared by retrieval and the admin page's sync: the model loads once, on first use.
+const embedder = new Embedder();
+const guidance = new GuidanceRepository(pool);
 
 interface Models {
   name: string;
@@ -64,7 +69,7 @@ function modelDeps(models: Models) {
     decider: jev ? new FallbackDecider(new MessageDecider(jev), models.decider) : models.decider,
     extractor: models.extractor,
     dataAnswerer: new DataAnswerer(models.dataAgent, jev, events),
-    guidanceAnswerer: new GuidanceAnswerer(models.writer, new Retriever(new Embedder(), new GuidanceRepository(pool), jev)),
+    guidanceAnswerer: new GuidanceAnswerer(models.writer, new Retriever(embedder, guidance, jev)),
   };
 }
 
@@ -88,7 +93,19 @@ registerHandlers(bot, {
 });
 bot.catch((err) => console.error("handler failed", err.error));
 
-process.once("SIGTERM", () => bot.stop());
-process.once("SIGINT", () => bot.stop());
+// Localhost only: the admin page is for whoever runs the bot, not the internet.
+const admin = createAdminServer({
+  sources: () => guidance.sources(),
+  sync: () => syncGuidance(guidance, embedder),
+});
+admin.listen(env.ADMIN_PORT, "127.0.0.1", () => console.log(`admin on http://localhost:${env.ADMIN_PORT}/admin`));
+
+function stop() {
+  void bot.stop();
+  admin.close();
+  admin.closeAllConnections();
+}
+process.once("SIGTERM", stop);
+process.once("SIGINT", stop);
 await bot.start({ onStart: (me) => console.log(`@${me.username} running`) });
 await pool.end();

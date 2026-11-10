@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tiny-partner admin</title>
+<link rel="stylesheet" href="/admin/admin.css">
+<script type="module" src="/admin/admin.js"></script>
+</head>
+<body>
+<main>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">tiny-partner · admin</p>
+      <h1>Panel del proyecto</h1>
+    </div>
+  </header>
+
+  <p id="notice" class="notice" role="status" hidden></p>
+
+  <section aria-labelledby="guidance-title">
+    <div class="section-head">
+      <div>
+        <h2 id="guidance-title">Guías del RAG</h2>
+        <p class="lede">El bot solo responde y cita a partir de estos documentos. Para añadir uno, crea un <code>.md</code> en <code>guidance/</code> y reindexa.</p>
+      </div>
+      <button id="sync" type="button"><span class="spinner" hidden></span><span class="label">Reindexar guidance/</span></button>
+    </div>
+    <p id="sync-notice" class="notice" role="status" hidden></p>
+    <div class="tiles">
+      <div class="tile"><p class="tile-label">Documentos</p><p class="tile-value" id="documents">–</p></div>
+      <div class="tile"><p class="tile-label">Fragmentos</p><p class="tile-value" id="chunks">–</p></div>
+      <div class="tile"><p class="tile-label">Última ingesta</p><p class="tile-value" id="last">–</p></div>
+    </div>
+    <div class="card list" aria-label="Documentos indexados">
+      <div class="row head"><span>Documento</span><span class="num">Fragmentos</span><span class="num">Indexado</span></div>
+      <ul id="sources"></ul>
+      <p id="empty" class="empty" hidden>Aún no hay guías indexadas. Añade un <code>.md</code> a <code>guidance/</code> y pulsa Reindexar.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

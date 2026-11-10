@@ -12,6 +12,14 @@ export interface NewChunk {
   embedding: number[];
 }
 
+/** One indexed source, as the admin page lists it. */
+export interface GuidanceSource {
+  title: string;
+  url: string;
+  chunks: number;
+  ingestedAt: Date;
+}
+
 const toVector = (embedding: number[]) => `[${embedding.join(",")}]`;
 
 export class GuidanceRepository {
@@ -42,6 +50,19 @@ export class GuidanceRepository {
   async deleteSourcesExcept(keepUrls: string[]): Promise<number> {
     const { rowCount } = await this.pool.query("DELETE FROM guidance_chunks WHERE source_url <> ALL($1::text[])", [keepUrls]);
     return rowCount ?? 0;
+  }
+
+  async sources(): Promise<GuidanceSource[]> {
+    const { rows } = await this.pool.query(
+      `SELECT source_title, source_url, count(*)::int AS chunks, max(ingested_at) AS ingested_at
+       FROM guidance_chunks GROUP BY source_title, source_url ORDER BY source_title`,
+    );
+    return rows.map((row) => ({
+      title: row.source_title,
+      url: row.source_url,
+      chunks: row.chunks,
+      ingestedAt: row.ingested_at,
+    }));
   }
 
   async nearest(embedding: number[], limit: number): Promise<GuidanceChunk[]> {
