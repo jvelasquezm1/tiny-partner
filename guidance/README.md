@@ -1,6 +1,6 @@
 # Guidance sources
 
-Put one markdown file per source here, with `title` and `url` front matter (see `src/rag/ingest.ts`), then run `pnpm ingest`.
+Put one markdown file per source here, with `title` and `url` front matter (see `src/rag/sync-guidance.ts`), then run `pnpm ingest`.
 
 Rules:
 - Only content whose license allows reuse. Check each source's terms before adding it.
