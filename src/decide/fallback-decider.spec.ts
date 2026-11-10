@@ -24,4 +24,10 @@ describe("FallbackDecider", () => {
       DecidersUnavailableError,
     );
   });
+
+  it("throws the same typed error when the only decider fails, so the bot still answers (no Jev)", async () => {
+    const error = await new FallbackDecider(failing("claude")).decide("hola").catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(DecidersUnavailableError);
+    expect((error as DecidersUnavailableError).causes).toHaveLength(1);
+  });
 });

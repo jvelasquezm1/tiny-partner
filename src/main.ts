@@ -68,7 +68,7 @@ function modelDeps(models: Models) {
     : null;
   if (!jev) console.log(`TYPESAFE_API_KEY not set: running on ${models.name} alone`);
   return {
-    decider: jev ? new FallbackDecider(new MessageDecider(jev), models.decider) : models.decider,
+    decider: jev ? new FallbackDecider(new MessageDecider(jev), models.decider) : new FallbackDecider(models.decider),
     extractor: models.extractor,
     dataAnswerer: new DataAnswerer(models.dataAgent, jev, events),
     guidanceAnswerer: new GuidanceAnswerer(models.writer, new Retriever(embedder, guidance, jev)),
