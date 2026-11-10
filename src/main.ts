@@ -4,6 +4,7 @@ import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { Bot } from "grammy";
 import pg from "pg";
 import { createAdminServer } from "./admin/admin-server.js";
+import { StatsRepository, type RuntimeMode } from "./admin/stats-repository.js";
 import { ClaudeDataAgent, DataAnswerer, type DataAgent } from "./answer/data-answerer.js";
 import { registerHandlers } from "./bot.js";
 import { EventsRepository } from "./db/events-repository.js";
@@ -96,8 +97,15 @@ registerHandlers(bot, {
 bot.catch((err) => console.error("handler failed", err.error));
 
 // Localhost only: the admin page is for whoever runs the bot, not the internet.
+const mode: RuntimeMode = {
+  offline: env.OFFLINE_MODE,
+  generator: env.ANTHROPIC_API_KEY ? "Claude" : "Gemini",
+  jev: Boolean(env.TYPESAFE_API_KEY),
+};
+const stats = new StatsRepository(pool, env.TZ, mode);
 const admin = createAdminServer({
   sources: () => guidance.sources(),
+  stats: () => stats.load(),
   sync: () => syncGuidance(guidance, embedder),
 });
 admin.listen(env.ADMIN_PORT, "127.0.0.1", () => console.log(`admin on http://localhost:${env.ADMIN_PORT}/admin`));

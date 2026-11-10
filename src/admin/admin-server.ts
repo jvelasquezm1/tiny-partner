@@ -2,9 +2,11 @@ import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { GuidanceSource } from "../rag/guidance-repository.js";
 import type { SyncResult } from "../rag/sync-guidance.js";
+import type { Stats } from "./stats-repository.js";
 
 export interface AdminDeps {
   sources: () => Promise<GuidanceSource[]>;
+  stats: () => Promise<Stats>;
   sync: () => Promise<SyncResult>;
 }
 
@@ -14,10 +16,11 @@ const ASSETS: Record<string, { file: string; type: string }> = {
   "/admin": { file: "index.html", type: "text/html; charset=utf-8" },
   "/admin/admin.css": { file: "admin.css", type: "text/css; charset=utf-8" },
   "/admin/admin.js": { file: "admin.js", type: "text/javascript; charset=utf-8" },
+  "/admin/charts.js": { file: "charts.js", type: "text/javascript; charset=utf-8" },
 };
 
 /**
- * The admin page: lists the indexed guidance and re-syncs the index with guidance/ on demand.
+ * The admin page: project stats, the indexed guidance, and a re-sync of the index with guidance/.
  * No login yet, so it only answers on localhost: a request for another host name (DNS rebinding)
  * is refused, and so is a POST from another origin, so a page elsewhere cannot start a sync.
  */
@@ -33,6 +36,7 @@ export function createAdminServer(deps: AdminDeps): Server {
       const asset = req.method === "GET" ? ASSETS[path] : undefined;
       if (asset) return send(res, 200, asset.type, await readFile(new URL(asset.file, PUBLIC_DIR), "utf8"));
       if (route === "GET /admin/api/sources") return json(res, 200, await deps.sources());
+      if (route === "GET /admin/api/stats") return json(res, 200, await deps.stats());
       if (route === "POST /admin/api/sync") {
         if (!sameOrigin(req)) return json(res, 403, { error: "cross-origin request" });
         if (syncing) return json(res, 409, { error: "Ya hay una reindexación en curso" });

@@ -14,9 +14,64 @@
       <p class="eyebrow">tiny-partner · admin</p>
       <h1>Panel del proyecto</h1>
     </div>
+    <ul class="chips" aria-label="Configuración">
+      <li><span class="chip-label">Modo</span><span id="mode">–</span></li>
+      <li><span class="chip-label">Embeddings</span><span id="embedding">–</span></li>
+    </ul>
   </header>
 
   <p id="notice" class="notice" role="status" hidden></p>
+
+  <section aria-labelledby="usage-title">
+    <h2 id="usage-title">Uso del bot</h2>
+    <div class="tiles">
+      <div class="tile"><p class="tile-label">Mensajes</p><p class="tile-value" id="messages-total">–</p></div>
+      <div class="tile"><p class="tile-label">Urgencias</p><p class="tile-value" id="messages-urgent">–</p></div>
+      <div class="tile">
+        <p class="tile-label">Guía sin fuente</p><p class="tile-value" id="no-source">–</p><p class="tile-note" id="no-source-note"></p>
+      </div>
+      <div class="tile">
+        <p class="tile-label">Respuesta media</p><p class="tile-value" id="latency-avg">–</p><p class="tile-note" id="latency-note"></p>
+      </div>
+    </div>
+    <div class="cards-2">
+      <figure class="card">
+        <figcaption><h3>Mensajes por día</h3><p>Últimos 14 días</p></figcaption>
+        <div id="messages-chart" class="chart"></div>
+      </figure>
+      <figure class="card">
+        <figcaption><h3>Mensajes por tipo</h3><p>Desde que se guardan las estadísticas</p></figcaption>
+        <ul id="outcomes" class="bars"></ul>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="events-title">
+    <h2 id="events-title">Registros del bebé</h2>
+    <div class="tiles">
+      <div class="tile"><p class="tile-label">Eventos</p><p class="tile-value" id="events-total">–</p></div>
+      <div class="tile"><p class="tile-label"><span class="key s1"></span>Tomas</p><p class="tile-value" id="events-feed">–</p></div>
+      <div class="tile"><p class="tile-label"><span class="key s2"></span>Sueño</p><p class="tile-value" id="events-sleep">–</p></div>
+      <div class="tile"><p class="tile-label"><span class="key s3"></span>Pañales</p><p class="tile-value" id="events-diaper">–</p></div>
+      <div class="tile"><p class="tile-label">Familias</p><p class="tile-value" id="households">–</p></div>
+    </div>
+    <figure class="card">
+      <figcaption><h3>Eventos por día</h3><p>Últimos 14 días, por la hora del evento</p></figcaption>
+      <ul class="legend" aria-label="Leyenda">
+        <li><span class="key s1"></span>Tomas</li>
+        <li><span class="key s2"></span>Sueño</li>
+        <li><span class="key s3"></span>Pañales</li>
+      </ul>
+      <div id="events-chart" class="chart"></div>
+      <details>
+        <summary>Ver como tabla</summary>
+        <table>
+          <thead><tr><th>Día</th><th>Tomas</th><th>Sueño</th><th>Pañales</th><th>Total</th></tr></thead>
+          <tbody id="events-table"></tbody>
+        </table>
+      </details>
+    </figure>
+  </section>
 
   <section aria-labelledby="guidance-title">
     <div class="section-head">
@@ -30,6 +85,7 @@
     <div class="tiles">
       <div class="tile"><p class="tile-label">Documentos</p><p class="tile-value" id="documents">–</p></div>
       <div class="tile"><p class="tile-label">Fragmentos</p><p class="tile-value" id="chunks">–</p></div>
+      <div class="tile"><p class="tile-label">Tamaño medio</p><p class="tile-value" id="chunk-size">–</p><p class="tile-note">caracteres por fragmento</p></div>
       <div class="tile"><p class="tile-label">Última ingesta</p><p class="tile-value" id="last">–</p></div>
     </div>
     <div class="card list" aria-label="Documentos indexados">

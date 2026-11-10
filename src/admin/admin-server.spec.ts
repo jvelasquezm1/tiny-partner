@@ -5,9 +5,17 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SyncResult } from "../rag/sync-guidance.js";
 import { createAdminServer, type AdminDeps } from "./admin-server.js";
+import type { Stats } from "./stats-repository.js";
 
 const source = { title: "Sueño seguro", url: "https://www.cdc.gov/sueno", chunks: 3, ingestedAt: new Date("2026-11-10T06:00:00Z") };
 const synced: SyncResult = { files: [{ file: "cdc-sueno-seguro.md", title: source.title, url: source.url, chunks: 3 }], removedChunks: 0 };
+const stats: Stats = {
+  mode: { offline: false, generator: "Claude", jev: false },
+  embedding: { model: "Xenova/multilingual-e5-small", dimension: 384 },
+  messages: { byOutcome: { log_event: 2, urgent: 1 }, avgMs: 1200, p95Ms: 3400, perDay: [{ day: "2026-11-10", count: 3 }] },
+  events: { byKind: { feed: 2 }, households: 1, perDay: [{ day: "2026-11-10", feed: 2, sleep: 0, diaper: 0 }] },
+  guidance: { avgChunkChars: 540 },
+};
 
 let server: Server;
 afterEach(() => server?.close());
@@ -15,6 +23,7 @@ afterEach(() => server?.close());
 async function start(overrides: Partial<AdminDeps> = {}) {
   server = createAdminServer({
     sources: async () => [source],
+    stats: async () => stats,
     sync: async () => synced,
     ...overrides,
   });
@@ -24,17 +33,18 @@ async function start(overrides: Partial<AdminDeps> = {}) {
 }
 
 describe("admin server", () => {
-  it("serves the page, its assets and the indexed sources", async () => {
+  it("serves the page, its assets, the stats and the indexed sources", async () => {
     const { request } = await start();
     expect(await (await request("/admin")).text()).toContain("Panel del proyecto");
-    const script = await request("/admin/admin.js");
+    const script = await request("/admin/charts.js");
     expect(script.headers.get("content-type")).toMatch(/^text\/javascript/);
+    expect(await (await request("/admin/api/stats")).json()).toEqual(stats);
     expect(await (await request("/admin/api/sources")).json()).toEqual([{ ...source, ingestedAt: source.ingestedAt.toISOString() }]);
   });
 
   it("ships page scripts that parse", () => {
     // The page's JS runs only in the browser: without this, a syntax error reaches the page unnoticed.
-    for (const file of ["admin.js"]) {
+    for (const file of ["admin.js", "charts.js"]) {
       expect(() => execFileSync(process.execPath, ["--check", fileURLToPath(new URL(`./public/${file}`, import.meta.url))])).not.toThrow();
     }
   });
