@@ -2,7 +2,9 @@ import { createPartFromFunctionResponse, createUserContent, type Content, type G
 import { z } from "zod";
 import { DATA_SYSTEM, logTools, type DataAgent, type LogTool } from "../answer/data-answerer.js";
 import { DECIDER_SYSTEM, DecisionSchema } from "../decide/claude-decider.js";
+import type { Turn } from "../conversation.js";
 import type { Decided, Decider } from "../decide/decider.js";
+import { FOLLOW_UP_SYSTEM, FollowUpSchema, followUpPrompt, type FollowUpResolver } from "../decide/follow-up.js";
 import { ExtractedEventSchema, type ExtractedEvent } from "../extract/event-schema.js";
 import { EXTRACTION_SYSTEM, ExtractionError, extractionMessage } from "../extract/extract-event.js";
 import { GUIDANCE_SYSTEM, type CitedText, type GroundedWriter } from "../rag/guidance-answerer.js";
@@ -50,6 +52,15 @@ export class GeminiDecider implements Decider {
     return output.urgent
       ? { decision: { type: "urgent", probability: 1 }, usage }
       : { decision: { type: "route", intent: output.intent, confidence: 1 }, usage };
+  }
+}
+
+export class GeminiFollowUpResolver implements FollowUpResolver {
+  constructor(private readonly client: GoogleGenAI) {}
+
+  async resolve(message: string, turns: Turn[]): Promise<string> {
+    const { output } = await generateObject(this.client, FollowUpSchema, FOLLOW_UP_SYSTEM, followUpPrompt(message, turns));
+    return output?.message.trim() || message;
   }
 }
 

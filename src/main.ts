@@ -7,15 +7,17 @@ import { createAdminServer } from "./admin/admin-server.js";
 import { StatsRepository, type RuntimeMode } from "./admin/stats-repository.js";
 import { ClaudeDataAgent, DataAnswerer, type DataAgent } from "./answer/data-answerer.js";
 import { registerHandlers } from "./bot.js";
+import { Conversations } from "./conversation.js";
 import { EventsRepository } from "./db/events-repository.js";
 import { MessagesRepository } from "./db/messages-repository.js";
 import { ClaudeDecider } from "./decide/claude-decider.js";
 import type { Decider } from "./decide/decider.js";
 import { FallbackDecider } from "./decide/fallback-decider.js";
+import { ClaudeFollowUpResolver, type FollowUpResolver } from "./decide/follow-up.js";
 import { MessageDecider } from "./decide/message-decider.js";
 import { loadEnv } from "./env.js";
 import { EventExtractor } from "./extract/extract-event.js";
-import { GeminiDataAgent, GeminiDecider, GeminiExtractor, GeminiWriter } from "./gemini/gemini.js";
+import { GeminiDataAgent, GeminiDecider, GeminiExtractor, GeminiFollowUpResolver, GeminiWriter } from "./gemini/gemini.js";
 import { offlineDeps } from "./offline.js";
 import { PendingEvents } from "./pending-events.js";
 import { Embedder } from "./rag/embedder.js";
@@ -34,6 +36,7 @@ const guidance = new GuidanceRepository(pool);
 interface Models {
   name: string;
   decider: Decider;
+  followUps: FollowUpResolver;
   extractor: Pick<EventExtractor, "extract">;
   dataAgent: DataAgent;
   writer: GroundedWriter;
@@ -44,6 +47,7 @@ function claudeModels(apiKey: string): Models {
   return {
     name: "Claude",
     decider: new ClaudeDecider(anthropic),
+    followUps: new ClaudeFollowUpResolver(anthropic),
     extractor: new EventExtractor(anthropic),
     dataAgent: new ClaudeDataAgent(anthropic, events),
     writer: new ClaudeWriter(anthropic),
@@ -55,6 +59,7 @@ function geminiModels(apiKey: string): Models {
   return {
     name: "Gemini",
     decider: new GeminiDecider(gemini),
+    followUps: new GeminiFollowUpResolver(gemini),
     extractor: new GeminiExtractor(gemini),
     dataAgent: new GeminiDataAgent(gemini, events),
     writer: new GeminiWriter(gemini),
@@ -70,6 +75,7 @@ function modelDeps(models: Models) {
   if (!jev) console.log(`TYPESAFE_API_KEY not set: running on ${models.name} alone`);
   return {
     decider: jev ? new FallbackDecider(new MessageDecider(jev), models.decider) : new FallbackDecider(models.decider),
+    followUps: models.followUps,
     extractor: models.extractor,
     dataAnswerer: new DataAnswerer(models.dataAgent, jev, events),
     guidanceAnswerer: new GuidanceAnswerer(models.writer, new Retriever(embedder, guidance, jev)),
@@ -93,6 +99,7 @@ registerHandlers(bot, {
   events,
   messages: new MessagesRepository(pool),
   pending: new PendingEvents(),
+  conversations: new Conversations(),
   allowedUserIds: env.ALLOWED_TELEGRAM_USER_IDS,
   timeZone: env.TZ,
 });

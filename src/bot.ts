@@ -2,8 +2,10 @@ import { InlineKeyboard, type Bot, type Context } from "grammy";
 import type { EventsRepository } from "./db/events-repository.js";
 import type { MessagesRepository } from "./db/messages-repository.js";
 import type { DataAnswerer } from "./answer/data-answerer.js";
+import type { Conversations } from "./conversation.js";
 import type { Decider, Intent } from "./decide/decider.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
+import type { FollowUpResolver } from "./decide/follow-up.js";
 import type { EventExtractor } from "./extract/extract-event.js";
 import type { BabyEvent } from "./extract/event-schema.js";
 import { statesUnclearClockTime, timeReadings } from "./extract/event-time.js";
@@ -22,6 +24,9 @@ export const EXPIRED_CHOICE_REPLY = "Esta pregunta ya no está activa: vuelve a 
 
 export interface BotDeps {
   decider: Decider;
+  /** Rewrites a follow-up so it stands alone, from the chat's recent turns. */
+  followUps: FollowUpResolver;
+  conversations: Pick<Conversations, "recent" | "add">;
   extractor: Pick<EventExtractor, "extract">;
   events: EventsRepository;
   messages: Pick<MessagesRepository, "record">;
@@ -55,20 +60,27 @@ export function registerHandlers(bot: Bot, deps: BotDeps): void {
 /** What the bot did with a message, for the log line and the admin page's stats. */
 export type Outcome = Intent | "no_source" | "urgent" | "unavailable";
 
-export async function handleText(ctx: Context, text: string, deps: BotDeps, now = new Date()): Promise<Outcome> {
+export async function handleText(ctx: Context, message: string, deps: BotDeps, now = new Date()): Promise<Outcome> {
   const chatId = ctx.chat!.id;
+  // Every step reads the message as it stands alone: "¿Por qué no conmigo?" becomes the question it follows up.
+  const text = await standalone(chatId, message, deps);
+  deps.conversations.add(chatId, "parent", text);
+  const reply = async (answer: string, other?: Parameters<Context["reply"]>[1]) => {
+    deps.conversations.add(chatId, "bot", answer);
+    await (other ? ctx.reply(answer, other) : ctx.reply(answer));
+  };
   let decision;
   try {
     ({ decision } = await deps.decider.decide(text));
   } catch (error) {
     if (!(error instanceof DecidersUnavailableError)) throw error;
     console.error("no decider available", error.causes);
-    await ctx.reply(UNAVAILABLE_REPLY);
+    await reply(UNAVAILABLE_REPLY);
     return "unavailable";
   }
 
   if (decision.type === "urgent") {
-    await ctx.reply(URGENT_REPLY);
+    await reply(URGENT_REPLY);
     return "urgent";
   }
 
@@ -81,24 +93,36 @@ export async function handleText(ctx: Context, text: string, deps: BotDeps, now 
         const id = deps.pending.add(chatId, text, readings);
         const keyboard = new InlineKeyboard();
         readings.forEach((reading, i) => keyboard.text(capitalize(when(reading, deps.timeZone, now, "hoy ")), `when:${id}:${i}`));
-        await ctx.reply(`⏰ ¿Cuándo fue ${subject(event)}?`, { reply_markup: keyboard.row().text("Cancelar", `when:${id}:cancel`) });
+        await reply(`⏰ ¿Cuándo fue ${subject(event)}?`, { reply_markup: keyboard.row().text("Cancelar", `when:${id}:cancel`) });
         return decision.intent;
       }
       await deps.events.insert(chatId, event, text);
-      await ctx.reply(`✅ ${describe(event, deps.timeZone, now)}`);
+      await reply(`✅ ${describe(event, deps.timeZone, now)}`);
       return decision.intent;
     }
     case "ask_about_data":
-      await ctx.reply(await deps.dataAnswerer.answer(chatId, text, now, deps.timeZone));
+      await reply(await deps.dataAnswerer.answer(chatId, text, now, deps.timeZone));
       return decision.intent;
     case "ask_guidance": {
       const answer = await deps.guidanceAnswerer.answer(text);
-      await ctx.reply(answer);
+      await reply(answer);
       return answer === NO_SOURCE_REPLY ? "no_source" : decision.intent;
     }
     case "other":
-      await ctx.reply(OTHER_REPLY);
+      await reply(OTHER_REPLY);
       return decision.intent;
+  }
+}
+
+/** Reads a message in the light of the chat's recent turns; alone if there are none or the rewrite fails. */
+async function standalone(chatId: number, message: string, deps: BotDeps): Promise<string> {
+  const turns = deps.conversations.recent(chatId);
+  if (turns.length === 0) return message;
+  try {
+    return await deps.followUps.resolve(message, turns);
+  } catch (error) {
+    console.warn("could not read the message as a follow-up, reading it alone", error);
+    return message;
   }
 }
 

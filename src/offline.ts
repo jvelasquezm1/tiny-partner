@@ -9,8 +9,12 @@ import type { EventKind, ExtractedEvent } from "./extract/event-schema.js";
  * safety branch, Postgres, templates) can be tried end to end without an API key or any spend.
  * Model-generated replies are marked 🧪 so a test run is never mistaken for the real thing.
  */
-export function offlineDeps(events: EventsRepository): Pick<BotDeps, "decider" | "extractor" | "dataAnswerer" | "guidanceAnswerer"> {
+export function offlineDeps(
+  events: EventsRepository,
+): Pick<BotDeps, "decider" | "extractor" | "dataAnswerer" | "guidanceAnswerer" | "followUps"> {
   return {
+    // Keyword rules read each message alone.
+    followUps: { resolve: async (message) => message },
     decider: new KeywordDecider(),
     extractor: { extract: async (text, now) => extractByKeywords(text, now) },
     dataAnswerer: {

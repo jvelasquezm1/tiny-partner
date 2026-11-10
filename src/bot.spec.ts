@@ -10,6 +10,7 @@ import {
   URGENT_REPLY,
   type BotDeps,
 } from "./bot.js";
+import { Conversations } from "./conversation.js";
 import { DecidersUnavailableError } from "./decide/fallback-decider.js";
 import type { Decision } from "./decide/decider.js";
 import type { BabyEvent } from "./extract/event-schema.js";
@@ -33,6 +34,8 @@ function setup(decision: Decision) {
   const ctx = { chat: { id: 7 }, reply, answerCallbackQuery: vi.fn(), editMessageText: vi.fn() } as unknown as Context;
   const deps = {
     decider: { name: "fake", decide: vi.fn().mockResolvedValue({ decision, usage: { inputTokens: 0, outputTokens: 0 } }) },
+    followUps: { resolve: vi.fn(async (message: string) => message) },
+    conversations: new Conversations(),
     extractor: { extract: vi.fn().mockResolvedValue({ ...feed, ambiguousTime: false }) },
     events: { insert: vi.fn().mockResolvedValue(1) },
     dataAnswerer: { answer: vi.fn().mockResolvedValue("Hace 2 horas.") },
@@ -114,6 +117,35 @@ suite("handleText", () => {
     vi.mocked(deps.guidanceAnswerer.answer).mockResolvedValueOnce("Boca arriba [1].").mockResolvedValueOnce(NO_SOURCE_REPLY);
     expect(await handleText(ctx, "¿cómo lo acuesto?", deps)).toBe("ask_guidance");
     expect(await handleText(ctx, "¿qué vacunas le tocan?", deps)).toBe("no_source");
+  });
+});
+
+suite("follow-ups", () => {
+  it("reads a follow-up as the question it follows, and remembers both sides", async () => {
+    const { ctx, deps, reply } = setup({ type: "route", intent: "ask_guidance", confidence: 0.9 });
+    vi.mocked(deps.guidanceAnswerer.answer).mockResolvedValue("No: comparta la habitación, no la cama [1].");
+    await handleText(ctx, "¿puedo dormir con el bebé en mi cama?", deps, now);
+    // The first message of a conversation is read alone: no rewrite to pay for.
+    expect(deps.followUps.resolve).not.toHaveBeenCalled();
+
+    vi.mocked(deps.followUps.resolve).mockResolvedValueOnce("¿Por qué no puedo dormir con el bebé en mi cama?");
+    await handleText(ctx, "¿Por qué no conmigo?", deps, now);
+    expect(deps.followUps.resolve).toHaveBeenCalledWith("¿Por qué no conmigo?", [
+      { role: "parent", text: "¿puedo dormir con el bebé en mi cama?" },
+      { role: "bot", text: "No: comparta la habitación, no la cama [1]." },
+    ]);
+    expect(deps.decider.decide).toHaveBeenLastCalledWith("¿Por qué no puedo dormir con el bebé en mi cama?");
+    expect(deps.guidanceAnswerer.answer).toHaveBeenLastCalledWith("¿Por qué no puedo dormir con el bebé en mi cama?");
+    expect(reply).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the message alone when the rewrite fails", async () => {
+    const { ctx, deps } = setup({ type: "route", intent: "other", confidence: 1 });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    deps.conversations.add(7, "parent", "hola");
+    vi.mocked(deps.followUps.resolve).mockRejectedValue(new Error("haiku down"));
+    await handleText(ctx, "¿y ahora?", deps, now);
+    expect(deps.decider.decide).toHaveBeenCalledWith("¿y ahora?");
   });
 });
 
