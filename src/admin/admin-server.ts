@@ -2,11 +2,11 @@ import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { GuidanceSource } from "../rag/guidance-repository.js";
 import { GuideConflictError, InvalidGuideError, type SyncResult } from "../rag/sync-guidance.js";
-import type { Stats } from "./stats-repository.js";
+import { InvalidRangeError, type RangeQuery, type Stats } from "./stats-repository.js";
 
 export interface AdminDeps {
   sources: () => Promise<GuidanceSource[]>;
-  stats: () => Promise<Stats>;
+  stats: (query: RangeQuery) => Promise<Stats>;
   sync: () => Promise<SyncResult>;
   /** Writes the uploaded guide into guidance/ and returns its file name (see addGuide). */
   addGuide: (input: unknown) => Promise<string>;
@@ -35,13 +35,16 @@ export function createAdminServer(deps: AdminDeps): Server {
   return createServer(async (req, res) => {
     try {
       if (!forLocalhost(req)) return json(res, 403, { error: "localhost only" });
-      const path = new URL(req.url ?? "/", "http://admin").pathname;
+      const { pathname: path, searchParams } = new URL(req.url ?? "/", "http://admin");
       const route = `${req.method} ${path}`;
       if (route === "GET /") return send(res, 302, "text/plain", "", { Location: "/admin" });
       const asset = req.method === "GET" ? ASSETS[path] : undefined;
       if (asset) return send(res, 200, asset.type, await readFile(new URL(asset.file, PUBLIC_DIR), "utf8"));
       if (route === "GET /admin/api/sources") return json(res, 200, await deps.sources());
-      if (route === "GET /admin/api/stats") return json(res, 200, await deps.stats());
+      if (route === "GET /admin/api/stats") {
+        const query = { days: searchParams.get("days"), from: searchParams.get("from"), to: searchParams.get("to") };
+        return json(res, 200, await deps.stats(query));
+      }
       if (route === "POST /admin/api/sync" || route === "POST /admin/api/guides") {
         if (!sameOrigin(req)) return json(res, 403, { error: "cross-origin request" });
         // One write at a time: adding a guide re-syncs too, so it holds the same lock.
@@ -57,7 +60,7 @@ export function createAdminServer(deps: AdminDeps): Server {
       }
       return json(res, 404, { error: "not found" });
     } catch (error) {
-      if (error instanceof InvalidGuideError) return json(res, 400, { error: error.message });
+      if (error instanceof InvalidGuideError || error instanceof InvalidRangeError) return json(res, 400, { error: error.message });
       if (error instanceof GuideConflictError) return json(res, 409, { error: error.message });
       console.error("admin request failed", error);
       return json(res, 500, { error: error instanceof Error ? error.message : "unexpected error" });

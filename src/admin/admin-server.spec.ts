@@ -5,14 +5,20 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GuideConflictError, InvalidGuideError, type SyncResult } from "../rag/sync-guidance.js";
 import { createAdminServer, type AdminDeps } from "./admin-server.js";
-import type { Stats } from "./stats-repository.js";
+import { InvalidRangeError, type Stats } from "./stats-repository.js";
 
 const source = { title: "Sueño seguro", url: "https://www.cdc.gov/sueno", chunks: 3, ingestedAt: new Date("2026-11-10T06:00:00Z") };
 const synced: SyncResult = { files: [{ file: "cdc-sueno-seguro.md", title: source.title, url: source.url, chunks: 3 }], removedChunks: 0 };
 const stats: Stats = {
   mode: { offline: false, generator: "Claude", jev: false },
   embedding: { model: "Xenova/multilingual-e5-small", dimension: 384 },
-  messages: { byOutcome: { log_event: 2, urgent: 1 }, avgMs: 1200, p95Ms: 3400, perDay: [{ day: "2026-11-10", count: 3 }] },
+  messages: {
+    range: { from: "2026-11-10", to: "2026-11-10" },
+    byOutcome: { log_event: 2, urgent: 1 },
+    avgMs: 1200,
+    p95Ms: 3400,
+    perDay: [{ day: "2026-11-10", count: 3 }],
+  },
   events: { byKind: { feed: 2 }, households: 1, perDay: [{ day: "2026-11-10", feed: 2, sleep: 0, diaper: 0 }] },
   guidance: { avgChunkChars: 540 },
 };
@@ -41,6 +47,19 @@ describe("admin server", () => {
     expect(script.headers.get("content-type")).toMatch(/^text\/javascript/);
     expect(await (await request("/admin/api/stats")).json()).toEqual(stats);
     expect(await (await request("/admin/api/sources")).json()).toEqual([{ ...source, ingestedAt: source.ingestedAt.toISOString() }]);
+  });
+
+  it("passes the chosen period to the stats, and reports a bad one", async () => {
+    const load = vi.fn(async () => stats);
+    const { request } = await start({ stats: load });
+    await request("/admin/api/stats?days=7");
+    await request("/admin/api/stats?from=2026-10-01&to=2026-10-31");
+    expect(load.mock.calls).toEqual([[{ days: "7", from: null, to: null }], [{ days: null, from: "2026-10-01", to: "2026-10-31" }]]);
+    server.close();
+
+    const invalid = await start({ stats: async () => Promise.reject(new InvalidRangeError("Rango de fechas no válido")) });
+    const response = await invalid.request("/admin/api/stats?from=x&to=y");
+    expect([response.status, await response.json()]).toEqual([400, { error: "Rango de fechas no válido" }]);
   });
 
   it("ships page scripts that parse", () => {

@@ -1,4 +1,4 @@
-import { barList, columnChart, el, emptyChart, formatLongDay, number } from "./charts.js";
+import { barList, columnChart, el, emptyChart, formatDay, formatLongDay, number } from "./charts.js";
 
 const $ = (id) => document.getElementById(id);
 const dateTime = new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" });
@@ -34,7 +34,53 @@ function setText(values) {
   for (const [id, text] of Object.entries(values)) $(id).textContent = text;
 }
 
+// The usage section's period: a preset number of days or a custom from/to. The server resolves it in the
+// bot's time zone and sends back the dates it used, which the date inputs then show.
+let period = { days: 14 };
+let shownRange = null;
+
+const statsPath = () =>
+  `/admin/api/stats?${new URLSearchParams(period.days ? { days: String(period.days) } : { from: period.from, to: period.to })}`;
+
+function renderPeriod(range) {
+  shownRange = range;
+  for (const button of document.querySelectorAll(".preset")) {
+    button.setAttribute("aria-pressed", String(Number(button.dataset.days) === period.days));
+  }
+  $("range-from").value = range.from;
+  $("range-to").value = range.to;
+  for (const label of document.querySelectorAll(".range-label")) label.textContent = `${formatDay(range.from)} – ${formatDay(range.to)}`;
+}
+
+async function changePeriod(next) {
+  const previous = period;
+  period = next;
+  $("usage").classList.add("is-loading");
+  try {
+    renderStats(await request("GET", statsPath()));
+    $("notice").hidden = true;
+  } catch (error) {
+    period = previous;
+    if (shownRange) renderPeriod(shownRange);
+    notify("notice", "error", `No se pudo cambiar el periodo: ${error.message}`);
+  } finally {
+    $("usage").classList.remove("is-loading");
+  }
+}
+
+for (const button of document.querySelectorAll(".preset")) {
+  button.addEventListener("click", () => changePeriod({ days: Number(button.dataset.days) }));
+}
+for (const id of ["range-from", "range-to"]) {
+  $(id).addEventListener("change", () => {
+    const from = $("range-from").value;
+    const to = $("range-to").value;
+    if (from && to) changePeriod({ from, to });
+  });
+}
+
 function renderStats({ mode, embedding, messages, events, guidance }) {
+  renderPeriod(messages.range);
   const count = (outcome) => messages.byOutcome[outcome] ?? 0;
   const total = sum(Object.values(messages.byOutcome));
   const guidanceQuestions = count("ask_guidance") + count("no_source");
@@ -48,9 +94,9 @@ function renderStats({ mode, embedding, messages, events, guidance }) {
     "no-source": number.format(count("no_source")),
     "no-source-note": guidanceQuestions
       ? `de ${number.format(guidanceQuestions)} preguntas de guía (${Math.round((count("no_source") / guidanceQuestions) * 100)} %)`
-      : "Aún no hay preguntas de guía",
+      : "Sin preguntas de guía en este periodo",
     "latency-avg": messages.avgMs === null ? "–" : duration(messages.avgMs),
-    "latency-note": messages.p95Ms === null ? "Aún no hay mensajes" : `El 95 % en menos de ${duration(messages.p95Ms)}`,
+    "latency-note": messages.p95Ms === null ? "Sin mensajes en este periodo" : `El 95 % en menos de ${duration(messages.p95Ms)}`,
     "events-total": number.format(eventsTotal),
     "events-feed": number.format(events.byKind.feed ?? 0),
     "events-sleep": number.format(events.byKind.sleep ?? 0),
@@ -64,8 +110,8 @@ function renderStats({ mode, embedding, messages, events, guidance }) {
     const outcomes = Object.entries(OUTCOMES).map(([outcome, label]) => ({ label, value: count(outcome) }));
     barList($("outcomes"), outcomes.sort((a, b) => b.value - a.value), "var(--series-1)");
   } else {
-    emptyChart($("messages-chart"), "Aún no hay mensajes: se cuentan desde que se activaron las estadísticas.");
-    $("outcomes").replaceChildren(el("li", "chart-empty", "Sin mensajes todavía."));
+    emptyChart($("messages-chart"), "Sin mensajes en este periodo. Se cuentan desde que se activaron las estadísticas.");
+    $("outcomes").replaceChildren(el("li", "chart-empty", "Sin mensajes en este periodo."));
   }
 
   const perDayTotals = events.perDay.map((day) => sum(EVENT_SERIES.map(({ key }) => day[key])));
@@ -122,7 +168,7 @@ async function request(method, path, payload) {
 }
 
 async function load() {
-  const [stats, sources] = await Promise.all([request("GET", "/admin/api/stats"), request("GET", "/admin/api/sources")]);
+  const [stats, sources] = await Promise.all([request("GET", statsPath()), request("GET", "/admin/api/sources")]);
   renderStats(stats);
   renderSources(sources);
 }

@@ -105,7 +105,7 @@ const mode: RuntimeMode = {
 const stats = new StatsRepository(pool, env.TZ, mode);
 const admin = createAdminServer({
   sources: () => guidance.sources(),
-  stats: () => stats.load(),
+  stats: (query) => stats.load(query),
   sync: () => syncGuidance(guidance, embedder),
   addGuide: (input) => addGuide(input),
 });
